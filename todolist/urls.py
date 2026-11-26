@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from . import views, views_extra
 
 app_name = 'todolist'
 urlpatterns=[
@@ -14,5 +14,14 @@ urlpatterns=[
     path('deleteItem/<int:id>', views.deleteItem, name="deleteItem"),
     path('pomodorotimer/<int:id>', views.pomodoroTimer, name="pomodoroTimer"),
     path('pomodorotimer/ajax/updatepomodoro', views.updatePomodoroCount, name="updatePomodoroCount"),
+    path('projects/', views_extra.projects, name='projects'),
+    path('projects/new/', views_extra.project_edit, name='project_new'),
+    path('projects/<int:id>/edit/', views_extra.project_edit, name='project_edit'),
+    path('projects/<int:id>/delete/', views_extra.project_delete, name='project_delete'),
+    path('metrics/', views_extra.metrics, name='metrics'),
+    path('metrics/<int:id>/', views_extra.metric, name='metric'),
+    path('metrics/<int:id>/delete/', views_extra.metric_delete, name='metric_delete'),
+    path('metrics/entries/<int:id>/delete/', views_extra.entry_delete, name='entry_delete'),
+    path('insights/', views_extra.insights, name='insights'),
     
 ]

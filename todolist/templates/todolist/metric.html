@@ -1,0 +1,57 @@
+{% extends "todolist/base.html" %}
+{% block title %}{{ metric.name }} · Todo list{% endblock %}
+{% block content %}
+<h1 class="page-title">{{ metric.name }}{% if metric.unit %} <small class="text-muted">({{ metric.unit }})</small>{% endif %}</h1>
+{% if summary %}
+<dl class="stat-grid">
+  <div><dt>Latest</dt><dd>{{ summary.latest|floatformat:"-2" }}</dd></div>
+  <div><dt>Change since first</dt><dd>{% if summary.change > 0 %}+{% endif %}{{ summary.change|floatformat:"-2" }}</dd></div>
+  <div><dt>Lowest</dt><dd>{{ summary.low|floatformat:"-2" }}</dd></div>
+  <div><dt>Highest</dt><dd>{{ summary.high|floatformat:"-2" }}</dd></div>
+</dl>
+{% endif %}
+<div class="card card-body mb-3 chart-card">
+  {% if entries|length > 1 %}<canvas id="metric-chart" aria-label="{{ metric.name }} over time" role="img"></canvas>
+  {% else %}<p class="hint mb-0">Add at least two entries to see a chart.</p>{% endif %}
+</div>
+<form method="post" class="card card-body mb-3" novalidate>
+  {% csrf_token %}
+  <h2 class="h6">Add an entry</h2>
+  <div class="row g-2">
+    <div class="col-sm-3">{% with f=form.value %}{% include "todolist/_field.html" %}{% endwith %}</div>
+    <div class="col-sm-4">{% with f=form.recorded_at %}{% include "todolist/_field.html" %}{% endwith %}</div>
+    <div class="col-sm-5">{% with f=form.note %}{% include "todolist/_field.html" %}{% endwith %}</div>
+  </div>
+  <div class="actions"><button class="btn btn-success" type="submit">Add entry</button></div>
+</form>
+<h2 class="h6">History</h2>
+<ul class="list-group mb-3">
+  {% for e in entries %}
+  <li class="list-group-item metric-row">
+    <span>{{ e.recorded_at|date:"D j M Y, H:i" }}</span>
+    <strong>{{ e.value|floatformat:"-2" }} {{ metric.unit }}</strong>
+    <span class="text-muted">{{ e.note }}</span>
+    <form method="post" action="{% url 'todolist:entry_delete' e.id %}" class="d-inline">{% csrf_token %}
+      <button class="btn btn-sm btn-link text-danger" type="submit" aria-label="Delete entry">Delete</button></form>
+  </li>
+  {% empty %}<li class="list-group-item empty">No entries yet.</li>{% endfor %}
+</ul>
+<form method="post" action="{% url 'todolist:metric_delete' metric.id %}" class="actions" onsubmit="return confirm('Stop tracking {{ metric.name|escapejs }} and delete all its entries?')">
+  {% csrf_token %}<a class="btn btn-outline-secondary" href="{% url 'todolist:metrics' %}">All metrics</a>
+  <button class="btn btn-outline-danger" type="submit">Delete this metric</button>
+</form>
+{{ chart|json_script:"chart-data" }}
+{% endblock %}
+{% block scripts %}
+{% if entries|length > 1 %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  var d = JSON.parse(document.getElementById('chart-data').textContent);
+  new Chart(document.getElementById('metric-chart'), {
+    type: 'line',
+    data: { labels: d.labels, datasets: [{ label: d.unit || 'Value', data: d.values, borderColor: '#198754', backgroundColor: 'rgba(25,135,84,.12)', fill: true, tension: .25, pointRadius: 3 }] },
+    options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false } } }
+  });
+</script>
+{% endif %}
+{% endblock %}

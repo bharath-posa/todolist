@@ -2,7 +2,7 @@
 {% block title %}Todo list{% endblock %}
 {% block content %}
 <header class="app-header">
-  <h1 class="page-title">Todo list</h1>
+  <h1 class="page-title">Tasks</h1>
   <p class="signed-in">Signed in as <strong>{{ logged_user }}</strong></p>
   <div class="actions">
     <a class="btn btn-success" href="{% url 'todolist:additem' %}">＋ Add task</a>
@@ -12,21 +12,29 @@
 
 <section class="filters card card-body" aria-label="Filters">
   <div class="row g-2">
-    <div class="col-md-4">
+    <div class="col-md-3">
+      <label class="form-label" for="filter-project">Project</label>
+      <select class="form-select" id="filter-project">
+        <option value="">All projects</option>
+        {% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        <option value="none">No project</option>
+      </select>
+    </div>
+    <div class="col-md-3">
       <label class="form-label" for="filter-priority">Priority</label>
       <select class="form-select" id="filter-priority">
         <option value="0">All priorities</option>
         {% for value, label in priority_choices %}<option value="{{ value }}">{{ value }}. {{ label }}</option>{% endfor %}
       </select>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
       <label class="form-label" for="filter-tag">Tag</label>
       <select class="form-select" id="filter-tag">
         <option value="">All tags</option>
         {% for tag in all_tags %}<option value="{{ tag|lower }}">#{{ tag }}</option>{% endfor %}
       </select>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
       <label class="form-label" for="filter-text">Search</label>
       <input class="form-control" id="filter-text" type="search" placeholder="Find a task">
     </div>
@@ -73,11 +81,13 @@
   // Priority, tag and search filters combine; each change re-evaluates every task (#44, #29).
   function applyFilters() {
     var prio = $('#filter-priority').val(), tag = $('#filter-tag').val(), text = $('#filter-text').val().toLowerCase().trim();
+    var project = $('#filter-project').val();
     $('.task-list').each(function () {
       var shown = 0, total = 0;
       $(this).find('li.task').each(function () {
         var tags = ($(this).data('tags') || '').toString().split(',').map(function (t) { return t.trim(); });
         var ok = (prio == '0' || String($(this).data('priority')) === prio)
+              && (!project || String($(this).data('project')) === project)
               && (!tag || tags.indexOf(tag) !== -1)
               && (!text || String($(this).data('text')).indexOf(text) !== -1);
         $(this).toggle(ok); total++; if (ok) shown++;
@@ -85,7 +95,7 @@
       $(this).find('.filtered-empty').prop('hidden', !(total > 0 && shown === 0));
     });
   }
-  $('#filter-priority, #filter-tag').on('change', applyFilters);
+  $('#filter-priority, #filter-tag, #filter-project').on('change', applyFilters);
   $('#filter-text').on('input', applyFilters);
 
   function openTab(name) {

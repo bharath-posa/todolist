@@ -1,0 +1,19 @@
+{% extends "todolist/base.html" %}
+{% block title %}{{ title }} · Todo list{% endblock %}
+{% block content %}
+<div class="form-page">
+  <h1 class="page-title">{{ title }}</h1>
+  <form method="post" class="card card-body" novalidate>
+    {% csrf_token %}
+    {% with f=form.name %}{% include "todolist/_field.html" %}{% endwith %}
+    {% with f=form.description %}{% include "todolist/_field.html" %}{% endwith %}
+    {% if project %}
+    <div class="form-check mb-3">{{ form.archived }}<label class="form-check-label" for="{{ form.archived.id_for_label }}">{{ form.archived.label }}</label></div>
+    {% endif %}
+    <div class="actions">
+      <button type="submit" class="btn btn-success">{{ submit_label }}</button>
+      <a href="{% url 'todolist:projects' %}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

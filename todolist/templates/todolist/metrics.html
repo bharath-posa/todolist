@@ -1,0 +1,28 @@
+{% extends "todolist/base.html" %}
+{% block title %}Metrics · Todo list{% endblock %}
+{% block content %}
+<h1 class="page-title">Metrics</h1>
+<p class="signed-in">Track any value over time, like body weight or hours slept.</p>
+<ul class="list-group mb-4">
+  {% for row in rows %}
+  <li class="list-group-item metric-row">
+    <a href="{% url 'todolist:metric' row.metric.id %}"><strong>{{ row.metric.name }}</strong></a>
+    <span class="metric-latest">
+      {% if row.latest %}{{ row.latest.value|floatformat:"-2" }} {{ row.metric.unit }} · {{ row.latest.recorded_at|date:"j M" }}{% else %}No entries yet{% endif %}
+    </span>
+    <span class="badge bg-light text-dark">{{ row.count }} entr{{ row.count|pluralize:"y,ies" }}</span>
+  </li>
+  {% empty %}
+  <li class="list-group-item empty">Nothing tracked yet.</li>
+  {% endfor %}
+</ul>
+<form method="post" class="card card-body" novalidate>
+  {% csrf_token %}
+  <h2 class="h6">Track something new</h2>
+  <div class="row g-2">
+    <div class="col-sm-7">{% with f=form.name %}{% include "todolist/_field.html" %}{% endwith %}</div>
+    <div class="col-sm-5">{% with f=form.unit %}{% include "todolist/_field.html" %}{% endwith %}</div>
+  </div>
+  <div class="actions"><button class="btn btn-success" type="submit">Start tracking</button></div>
+</form>
+{% endblock %}
