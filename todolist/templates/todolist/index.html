@@ -1,14 +1,7 @@
 {% extends "todolist/base.html" %}
 {% block title %}Todo list{% endblock %}
 {% block content %}
-<header class="app-header">
-  <h1 class="page-title">Tasks</h1>
-  <p class="signed-in">Signed in as <strong>{{ logged_user }}</strong></p>
-  <div class="actions">
-    <a class="btn btn-success" href="{% url 'todolist:additem' %}">＋ Add task</a>
-    <a class="btn btn-outline-danger" href="{% url 'todolist:signout' %}">Sign out</a>
-  </div>
-</header>
+<h1 class="page-title">Tasks</h1>
 
 {% if highlight %}
 <div class="alert alert-success saved-banner" role="status" data-highlight-id="{{ highlight.id }}"
@@ -18,9 +11,27 @@
 </div>
 {% endif %}
 
-<section class="filters card card-body" aria-label="Filters">
-  <div class="row g-2">
-    <div class="col-md-3">
+{# Quick add (#9): Enter adds a task due today; "More options" opens the full form with the text. #}
+<form class="quick-add" method="post" action="{% url 'todolist:quick_add' %}" autocomplete="off">
+  {% csrf_token %}
+  <label class="visually-hidden" for="quick-add-text">New task</label>
+  <input class="form-control" id="quick-add-text" name="text" maxlength="700" placeholder="Add a task…" required
+         enterkeyhint="done">
+  <button class="btn btn-success" type="submit">Add</button>
+  <a class="btn btn-link more-options" href="{% url 'todolist:additem' %}">More options</a>
+</form>
+
+{# Filters (#8): search stays visible; the rest folds behind one button. Active ones show as chips. #}
+<section class="filters" aria-label="Filters">
+  <div class="filter-bar">
+    <label class="visually-hidden" for="filter-text">Search tasks</label>
+    <input class="form-control" id="filter-text" type="search" placeholder="Search" autocomplete="off">
+    <button class="btn btn-outline-secondary filter-toggle" type="button" aria-expanded="false" aria-controls="filter-panel">
+      Filter<span class="filter-count" hidden></span>
+    </button>
+  </div>
+  <div class="filter-panel" id="filter-panel" hidden>
+    <div>
       <label class="form-label" for="filter-project">Project</label>
       <select class="form-select" id="filter-project" autocomplete="off">
         <option value="">All projects</option>
@@ -28,47 +39,59 @@
         <option value="none">No project</option>
       </select>
     </div>
-    <div class="col-md-3">
+    <div>
       <label class="form-label" for="filter-priority">Priority</label>
       <select class="form-select" id="filter-priority" autocomplete="off">
         <option value="0">All priorities</option>
         {% for value, label in priority_choices %}<option value="{{ value }}">{{ value }}. {{ label }}</option>{% endfor %}
       </select>
     </div>
-    <div class="col-md-3">
+    <div>
       <label class="form-label" for="filter-tag">Tag</label>
       <select class="form-select" id="filter-tag" autocomplete="off">
         <option value="">All tags</option>
         {% for tag in all_tags %}<option value="{{ tag|lower }}">#{{ tag }}</option>{% endfor %}
       </select>
     </div>
-    <div class="col-md-3">
-      <label class="form-label" for="filter-text">Search</label>
-      <input class="form-control" id="filter-text" type="search" placeholder="Find a task" autocomplete="off">
-    </div>
   </div>
+  <div class="filter-chips" aria-live="polite"></div>
 </section>
 
-<nav class="tabs" role="tablist">
+{# Tabs (#12): one line that scrolls sideways if it must, never wraps. #}
+<nav class="tabs" role="tablist" aria-label="Task lists">
   <button class="tablink active" role="tab" data-tab="Today">Today <span class="count">{{ today_items|length }}</span></button>
   <button class="tablink" role="tab" data-tab="Recurring">Repeating <span class="count">{{ recurring_items|length }}</span></button>
   <button class="tablink" role="tab" data-tab="Unit">One-off <span class="count">{{ list_of_items|length }}</span></button>
-  <button class="tablink" role="tab" data-tab="Completed">Completed <span class="count">{{ completed_items|length }}</span></button>
+  <button class="tablink" role="tab" data-tab="Completed">Done <span class="count">{{ completed_items|length }}</span></button>
 </nav>
 
 <div id="Today" class="tabcontent" role="tabpanel">
-  <p class="hint">Due today or overdue, plus repeating tasks still to do.</p>
+  {% if overdue_items %}
+  <section class="task-group overdue">
+    <h2 class="group-title">Overdue <span class="count">{{ overdue_items|length }}</span></h2>
+    {% include "todolist/_list.html" with items=overdue_items %}
+  </section>
+  {% if due_today_items %}
+  <section class="task-group">
+    <h2 class="group-title">Today <span class="count">{{ due_today_items|length }}</span></h2>
+    {% include "todolist/_list.html" with items=due_today_items %}
+  </section>
+  {% endif %}
+  {% else %}
   {% include "todolist/_list.html" with items=today_items empty="Nothing due today. Nice." %}
+  {% endif %}
+  <p class="filtered-empty" hidden>No tasks match the filters.</p>
 </div>
 <div id="Recurring" class="tabcontent" role="tabpanel" hidden>
   {% include "todolist/_list.html" with items=recurring_items empty="No repeating tasks yet." %}
+  <p class="filtered-empty" hidden>No tasks match the filters.</p>
 </div>
 <div id="Unit" class="tabcontent" role="tabpanel" hidden>
   {% include "todolist/_list.html" with items=list_of_items empty="No open one-off tasks." %}
+  <p class="filtered-empty" hidden>No tasks match the filters.</p>
 </div>
 <div id="Completed" class="tabcontent" role="tabpanel" hidden>
   {% include "todolist/_list.html" with items=completed_items empty="Nothing completed yet." %}
+  <p class="filtered-empty" hidden>No tasks match the filters.</p>
 </div>
 {% endblock %}
-
-{% block scripts %}{% endblock %}

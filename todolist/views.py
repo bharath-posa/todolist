@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
 from .models import Item, DeleteItem, CustomUser, Project, RecurringItemStatus, PRIORITY_CHOICES, split_tags
 from django import forms
 from .forms import ItemForm, ItemUpdateForm, CustomUserForm
@@ -33,6 +33,10 @@ def index(request):
     today_items = (items.filter(status=False)
                    .filter(Q(recurring_task=True) | Q(due_date__lte=end_of_today))
                    .order_by('-itemPriority', 'due_date'))
+    # Today is shown in two groups: one-off tasks whose due day has passed, then the rest.
+    start_of_today = timezone.make_aware(datetime.datetime.combine(today, datetime.time.min))
+    overdue_items = today_items.filter(recurring_task=False, due_date__lt=start_of_today)
+    due_today_items = today_items.exclude(id__in=overdue_items.values('id'))
     by_lower = {}
     for tags in items.values_list('tags', flat=True):
         for t in split_tags(tags):
@@ -46,12 +50,13 @@ def index(request):
             tabs = [name for name, qs in (("Today", today_items), ("Recurring", recurring_items),
                                           ("Unit", list_of_items), ("Completed", completed_items))
                     if qs.filter(id=item.id).exists()]
-            labels = {"Today": "Today", "Recurring": "Repeating", "Unit": "One-off", "Completed": "Completed"}
+            labels = {"Today": "Today", "Recurring": "Repeating", "Unit": "One-off", "Completed": "Done"}
             highlight = {"id": item.id, "title": item.todo_item, "tabs": tabs,
                          "tab_labels": [labels[t] for t in tabs], "verb": "Added" if 'added' in request.GET else "Saved"}
     context = {
         'highlight': highlight,
-        'today_items': today_items, 'recurring_items': recurring_items, 'list_of_items': list_of_items,
+        'today_items': today_items, 'overdue_items': overdue_items, 'due_today_items': due_today_items,
+        'recurring_items': recurring_items, 'list_of_items': list_of_items,
         'completed_items': completed_items, 'logged_user': user.username, 'all_tags': all_tags,
         'priority_choices': PRIORITY_CHOICES, 'now': timezone.now(),
         'projects': Project.objects.filter(user=user, archived=False), 'active_nav': 'tasks',
@@ -94,7 +99,30 @@ def additem(request):
         now = timezone.localtime().replace(second=0, microsecond=0)
         form = ItemForm(initial={'start_date': now, 'due_date': now + datetime.timedelta(days=1),
                                  'project': request.GET.get('project')}, user=request.user)
+    if request.method != 'POST':
+        text = (request.GET.get('text') or '').strip()[:700]   # carried over from the quick-add box
+        if text:
+            form.initial['todo_item'] = text
     return render(request, 'todolist/additem.html', {'form': form, 'title': 'New task', 'submit_label': 'Add task'})
+
+
+QUICK_ADD_PRIORITY = 2   # "Not urgent, important", the same default as the full form
+
+
+@login_required
+def quick_add(request):
+    """One-line add from the task list (#9): due at the end of today, default priority."""
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    text = ' '.join((request.POST.get('text') or '').split())[:700]
+    if not text:
+        return redirect('todolist:index')
+    now = timezone.now()
+    end_of_today = timezone.make_aware(datetime.datetime.combine(timezone.localdate(), datetime.time(23, 59)))
+    item = Item.objects.create(user=request.user, todo_item=text, create_date=now, start_date=now,
+                               due_date=end_of_today, status=False, pomodoro_estimate=0, pomodoro_completed=0,
+                               recurring_task=False, autoCompletePomodoro=False, itemPriority=QUICK_ADD_PRIORITY)
+    return _back(request, item, 'added')
 
 
 @login_required

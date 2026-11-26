@@ -89,8 +89,9 @@ button.home {
 .actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin: .75rem 0 1rem; }
 .actions .btn { min-width: 9rem; }
 .filters { margin-bottom: 1rem; }
-.tabs { display: flex; flex-wrap: wrap; gap: .25rem; border-bottom: 2px solid #dee2e6; margin-bottom: .75rem; }
-.tablink { border: 0; background: none; padding: .55rem .9rem; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #495057; font-weight: 500; }
+.tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: .1rem; border-bottom: 2px solid #dee2e6; margin-bottom: .75rem; }
+.tabs::-webkit-scrollbar { display: none; }
+.tablink { flex: none; white-space: nowrap; border: 0; background: none; padding: .55rem .9rem; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #495057; font-weight: 500; }
 .tablink.active { border-bottom-color: #198754; color: #198754; }
 .tablink .count { display: inline-block; min-width: 1.4rem; padding: 0 .35rem; border-radius: 999px; background: #e9ecef; font-size: .8rem; }
 .hint { color: #6c757d; font-size: .9rem; }
@@ -155,3 +156,63 @@ li.task.just-saved { outline: 3px solid #198754; outline-offset: -3px; backgroun
 .crumbs a, .project-name { text-decoration: none; }
 a.badge.project { text-decoration: none; }
 .project-summary { display: grid; gap: .35rem; max-width: 28rem; margin: .5rem auto 0; text-align: center; color: #495057; }
+
+/* ---------- UI Tier 1: phone-first layout (#8-#12) ---------- */
+/* Top bar: one line. Links show on wide screens; phones use the bottom bar. */
+.topnav-inner { flex-wrap: nowrap; }
+.topnav .player { margin-left: auto; white-space: nowrap; }
+.account { position: relative; }
+.account > summary { list-style: none; cursor: pointer; display: grid; place-items: center; width: 44px; height: 44px; margin: -6px -6px -6px 0; }
+.account > summary::-webkit-details-marker { display: none; }
+.avatar { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #146c43; font-weight: 700; }
+.account > summary:focus-visible .avatar { outline: 3px solid #fff; outline-offset: 2px; }
+.account-menu { position: absolute; right: 0; top: calc(100% + .4rem); z-index: 1050; min-width: 13rem; background: #fff; color: #212529;
+                border: 1px solid #dee2e6; border-radius: .6rem; box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.15); padding: .5rem; }
+.account-name { margin: .25rem .5rem .5rem; font-size: .9rem; color: #495057; overflow-wrap: anywhere; }
+.topnav .account-signout { display: block; padding: .55rem .5rem; border-radius: .4rem; color: #b02a37; }
+.topnav .account-signout:hover, .topnav .account-signout:focus-visible { background: #f8d7da; }
+
+.bottomnav { display: none; }
+.fab { display: none; }
+@media (max-width: 767.98px) {
+  .topnav .navlinks { display: none; }
+  .bottomnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1040; background: #fff;
+               border-top: 1px solid #dee2e6; padding-bottom: env(safe-area-inset-bottom); }
+  .bottomnav a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .15rem; min-height: 56px; padding: .45rem 0 .35rem;
+                 font-size: .75rem; color: #6c757d; text-decoration: none; }
+  .bottomnav svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .bottomnav a[aria-current="page"] { color: #146c43; font-weight: 600; }
+  .fab { display: grid; place-items: center; position: fixed; right: max(16px, env(safe-area-inset-right)); z-index: 1041;
+         bottom: calc(56px + 16px + env(safe-area-inset-bottom)); width: 56px; height: 56px; border-radius: 50%;
+         background: #198754; color: #fff; font-size: 1.75rem; line-height: 1; text-decoration: none; box-shadow: 0 .35rem 1rem rgba(0,0,0,.25); }
+  .fab:hover, .fab:focus-visible { background: #146c43; color: #fff; }
+  .signed-in-layout main { padding-bottom: calc(56px + 88px + env(safe-area-inset-bottom)) !important; }
+  .container.app { padding-left: 16px; padding-right: 16px; }
+}
+
+/* Home: quick add, then search + Filter, then the lists. */
+.page-title { font-size: 1.6rem; margin-bottom: .75rem; }
+.quick-add { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .75rem; }
+.quick-add .form-control { flex: 1 1 12rem; min-height: 44px; }
+.quick-add .btn { min-height: 44px; }
+.quick-add .more-options { padding-left: .25rem; padding-right: .25rem; }
+@media (max-width: 575.98px) { .quick-add .more-options { width: 100%; text-align: left; margin-top: -.35rem; min-height: 0; padding-top: 0; } }
+.filters { margin-bottom: .75rem; }
+.filter-bar { display: flex; gap: .5rem; }
+.filter-bar .form-control, .filter-toggle { min-height: 44px; }
+.filter-toggle { flex: none; }
+.filter-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .5rem .75rem; margin-top: .5rem;
+                padding: .75rem; border: 1px solid #dee2e6; border-radius: .5rem; background: #f8f9fa; }
+.filter-panel[hidden] { display: none; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.filter-chips:not(:empty) { margin-top: .5rem; }
+.chip { border: 1px solid #b6d4c3; background: #e8f5ee; color: #14532d; border-radius: 999px; padding: .3rem .75rem; font-size: .875rem; min-height: 32px; }
+.chip:hover { background: #d1ebdc; }
+.task-group + .task-group { margin-top: 1rem; }
+.group-title { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #6c757d; margin: 0 0 .4rem; }
+.task-group.overdue .group-title { color: #b02a37; }
+.group-title .count { font-weight: 600; }
+.tabcontent .filtered-empty { color: #6c757d; text-align: center; padding: 1rem; margin: 0; }
+.group-title { text-align: left; }
+@media (max-width: 400px) { .tabs { gap: 0; } .tablink { padding: .55rem .35rem; font-size: .9rem; } .tablink .count { min-width: 1.15rem; padding: 0 .3rem; font-size: .75rem; } }
+li.task { scroll-margin: 88px 0 160px; }   /* keep a highlighted task clear of the bars */

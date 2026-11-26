@@ -402,3 +402,53 @@ class TabStyles(TestCase):
         css = open(finders.find("todolist/style.css")).read()
         for block in re.findall(r"\.tabcontent\s*\{([^}]*)\}", css):
             self.assertNotIn("display: none", block.replace("display:none", "display: none"))
+
+
+class PhoneFirstHome(Base):
+    """UI Tier 1 (#8-#12): quick add, folded filters, account menu, bottom bar, Overdue/Today groups."""
+
+    def setUp(self):
+        super().setUp()
+        self.login(self.alice)
+
+    def test_quick_add_creates_a_task_due_today_and_highlights_it(self):
+        res = self.client.post("/todolist/quickadd/", {"text": "  Call   the dentist "})
+        item = Item.objects.get(todo_item="Call the dentist")
+        self.assertEqual(res["Location"], f"/todolist/?added={item.id}")
+        self.assertEqual(item.user, self.alice)
+        self.assertEqual(timezone.localtime(item.due_date).date(), timezone.localdate())
+        self.assertFalse(item.status)
+        page = self.client.get(res["Location"])
+        self.assertIn(item, page.context["today_items"])
+
+    def test_quick_add_needs_post_and_text(self):
+        self.assertEqual(self.client.get("/todolist/quickadd/").status_code, 405)
+        before = Item.objects.count()
+        self.client.post("/todolist/quickadd/", {"text": "   "})
+        self.assertEqual(Item.objects.count(), before)
+
+    def test_quick_add_requires_sign_in(self):
+        self.client.logout()
+        res = self.client.post("/todolist/quickadd/", {"text": "x"})
+        self.assertTrue(res["Location"].startswith("/todolist/login/"))
+
+    def test_more_options_carries_the_text_into_the_form(self):
+        page = self.client.get("/todolist/additem/?text=Book+flights")
+        self.assertEqual(page.context["form"].initial["todo_item"], "Book flights")
+
+    def test_overdue_tasks_are_grouped_first(self):
+        late = make_item(self.alice, todo_item="Pay the bill", due_date=timezone.now() - datetime.timedelta(days=2))
+        page = self.client.get("/todolist/")
+        self.assertIn(late, page.context["overdue_items"])
+        self.assertNotIn(late, page.context["due_today_items"])
+        today = page.content.decode().split('id="Today"')[1].split('id="Recurring"')[0]
+        self.assertLess(today.index("Overdue"), today.index("Pay the bill"))
+
+    def test_layout_has_one_primary_action_and_account_menu(self):
+        body = self.client.get("/todolist/").content.decode()
+        self.assertIn('class="quick-add"', body)
+        self.assertIn('class="account"', body)
+        self.assertIn('class="bottomnav"', body)
+        self.assertIn('id="filter-panel" hidden', body)
+        self.assertNotIn("btn-outline-danger\" href=\"/todolist/signout/", body)
+        self.assertIn(">Done <span", body)
