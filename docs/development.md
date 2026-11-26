@@ -40,5 +40,9 @@ and builds the Docker image.
 - **Points.** `game.status_changed()` records or removes a `task_done` activity whenever a task's done flag
   changes (checkbox, edit form, pomodoro auto-complete). `game.record_pomodoro()` logs each pomodoro.
   `game.stats()` derives points, level, streaks and badges from the log.
-- **Front end.** Server-rendered Django templates with Bootstrap 5.0.2, jQuery 3.4.1 (status toggle,
+- **Front end.** Server-rendered Django templates with Bootstrap 5.3.3, jQuery 3.4.1 (status toggle,
   filters, tabs) and Chart.js 4.4.1 (Insights and metric charts), all from CDNs.
+- **Styles.** `static/todolist/style.css` starts with design tokens (`--tl-*` colours, `--sp-*` spacing,
+  `--fs-*` sizes, radii). Use the tokens, not raw colours; a test fails on stray hex values. Dark mode sets
+  `data-bs-theme="dark"` on `<html>` (an inline script in `base.html`, before the CSS) and only redefines
+  the tokens. Text colours meet 4.5:1 contrast and priority rings 3:1, in both themes.

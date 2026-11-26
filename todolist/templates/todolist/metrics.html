@@ -10,10 +10,11 @@
     <span class="metric-latest">
       {% if row.latest %}{{ row.latest.value|floatformat:"-2" }} {{ row.metric.unit }} · {{ row.latest.recorded_at|date:"j M" }}{% else %}No entries yet{% endif %}
     </span>
-    <span class="badge bg-light text-dark">{{ row.count }} entr{{ row.count|pluralize:"y,ies" }}</span>
+    <span class="count">{{ row.count }} entr{{ row.count|pluralize:"y,ies" }}</span>
   </li>
   {% empty %}
-  <li class="list-group-item empty">Nothing tracked yet.</li>
+  <li class="list-group-item empty-state"><span class="empty-icon" aria-hidden="true">📈</span>
+    <strong>Nothing tracked yet</strong><p>Start with something like body weight or hours slept, using the form below.</p></li>
   {% endfor %}
 </ul>
 <form method="post" class="card card-body" novalidate>

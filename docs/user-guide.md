@@ -41,8 +41,12 @@ The search box is always shown. **Filter** opens project, priority and tag; each
 chip under the search box (tap the chip to remove it). They all combine and the lists update straight away.
 
 ## Getting around
-On a phone, Tasks, Projects, Metrics and Insights are in the bar at the bottom of the screen. On a wider
-screen they are in the top bar. Your initial at the top right opens the account menu with **Sign out**.
+On a phone, Tasks, Projects, Metrics and Insights are in the bar at the bottom of the screen. On a tablet
+they are in the top bar. On a wide screen a sidebar lists Tasks (with how many are due today), Metrics,
+Insights and each project with its open tasks; **＋** next to Projects starts a new one.
+
+Your initial at the top right opens the account menu: **Appearance** (Auto follows your device's light or
+dark setting; Light and Dark fix it on this device) and **Sign out**.
 
 ### Repeating tasks
 A repeating task starts over (not done, 0 pomodoros) when its period rolls over: the next day, the next

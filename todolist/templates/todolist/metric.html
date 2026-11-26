@@ -46,6 +46,7 @@
 {% if entries|length > 1 %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
+  if (window.tlChartTheme) tlChartTheme();
   var d = JSON.parse(document.getElementById('chart-data').textContent);
   new Chart(document.getElementById('metric-chart'), {
     type: 'line',

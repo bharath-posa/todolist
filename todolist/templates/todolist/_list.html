@@ -1,3 +1,8 @@
 <ul class="list-group task-list">
-  {% for item in items %}{% include "todolist/_item.html" %}{% empty %}<li class="list-group-item empty">{{ empty }}</li>{% endfor %}
+  {% for item in items %}{% include "todolist/_item.html" %}{% empty %}
+  <li class="list-group-item empty-state">
+    {% if empty_icon %}<span class="empty-icon" aria-hidden="true">{{ empty_icon }}</span>{% endif %}
+    {% if empty_title %}<strong>{{ empty_title }}</strong>{% endif %}
+    <p>{{ empty }}</p>
+  </li>{% endfor %}
 </ul>

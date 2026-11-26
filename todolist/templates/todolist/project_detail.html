@@ -23,7 +23,7 @@
 </div>
 
 <h2 class="h6">To do <span class="text-muted">({{ open_items|length }})</span></h2>
-{% include "todolist/_list.html" with items=open_items empty="Nothing left to do here." hide_project=True %}
+{% include "todolist/_list.html" with items=open_items empty_icon="🎯" empty_title="Nothing left to do here" empty="Add the next step with the button above." hide_project=True %}
 
 <h2 class="h6 mt-3">Done <span class="text-muted">({{ done_items|length }})</span></h2>
 {% include "todolist/_list.html" with items=done_items empty="Nothing finished yet." hide_project=True %}
