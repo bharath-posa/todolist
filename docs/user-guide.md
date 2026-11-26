@@ -62,6 +62,18 @@ Deleting a project keeps its tasks; they just have no project afterwards.
 unit, then add entries (value, time, optional note). Each metric shows its latest value, the change since
 the first entry, the lowest and highest values, and a chart.
 
+### Sync weight from Apple Health
+If your Bluetooth scale's app saves to Apple Health, an iPhone Shortcut can send each weigh-in here:
+**Metrics → Sync weight from Apple Health** makes a personal key and walks you through the Shortcut and
+an automation that runs when you close the scale's app. Weights go to the **Weight** metric (pounds are
+converted if the metric is in kg); sending the same weigh-in twice saves it once. Make a new key or
+remove it on the same page.
+
+For other tools: `POST /todolist/api/metric-entries/` with `Authorization: Bearer <key>` and a JSON body
+`{"metric": "Weight", "value": 72.4, "unit": "kg", "recorded_at": "2026-11-26T07:45:00+05:30"}`
+(`metric` defaults to Weight, `recorded_at` to now). Answers 201 when saved, 200 when it was already
+there, 400 for a bad value and 401 for a wrong key.
+
 ## Insights, points and levels
 **Insights** shows your activity for the last 30 days (tasks finished and pomodoros per day), finished vs.
 open tasks by priority, and project progress.

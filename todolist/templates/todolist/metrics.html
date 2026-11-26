@@ -3,6 +3,7 @@
 {% block content %}
 <h1 class="page-title">Metrics</h1>
 <p class="signed-in">Track any value over time, like body weight or hours slept.</p>
+<p class="text-center"><a class="btn btn-outline-success btn-sm" href="{% url 'todolist:health_connect' %}">⚖️ Sync weight from Apple Health</a></p>
 <ul class="list-group mb-4">
   {% for row in rows %}
   <li class="list-group-item metric-row">

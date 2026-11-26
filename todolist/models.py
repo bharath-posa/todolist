@@ -203,3 +203,18 @@ class MetricEntry(models.Model):
 
     class Meta:
         ordering = ['-recorded_at']
+
+
+class PersonalKey(models.Model):
+    """A secret that lets a Shortcut (or another app) add metric entries for one user.
+
+    Only a SHA-256 hash is stored; the key itself is shown once, when it's made.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='personal_key')
+    key_hash = models.CharField(max_length=64, unique=True)
+    prefix = models.CharField(max_length=8)   # first characters, so the user can tell keys apart
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.user} {self.prefix}…"

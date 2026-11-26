@@ -1,0 +1,105 @@
+{% extends "todolist/base.html" %}
+{% block title %}Connect Apple Health · Todo list{% endblock %}
+{% block content %}
+<div class="form-page connect-page">
+<p class="crumbs"><a href="{% url 'todolist:metrics' %}">← Metrics</a></p>
+<h1 class="page-title">Connect Apple Health</h1>
+<p class="signed-in">Weigh yourself, close your scale's app, and the weight lands in your <strong>Weight</strong> metric.</p>
+
+{% if notice %}<div class="alert alert-info" role="status">{{ notice }}</div>{% endif %}
+
+<section class="card card-body mb-3">
+  <h2 class="h5">1. Your personal key</h2>
+  {% if new_key %}
+  <div class="alert alert-warning mb-2" role="status">
+    Copy this key now. It's shown only once. Anyone with it can add values to your metrics.
+  </div>
+  <div class="copy-row">
+    <input class="form-control font-monospace" id="new-key" value="{{ new_key }}" readonly aria-label="Your new personal key">
+    <button class="btn btn-success" type="button" data-copy="#new-key">Copy</button>
+  </div>
+  {% elif key %}
+  <p class="mb-2">You have a key starting <code>{{ key.prefix }}…</code>, made {{ key.created_at|date:"j M Y" }}.
+     {% if key.last_used_at %}Last used {{ key.last_used_at|timesince }} ago.{% else %}Not used yet.{% endif %}</p>
+  <p class="hint">The full key was shown only when it was made. If you've lost it, make a new one; the old one stops working.</p>
+  {% else %}
+  <p>The Shortcut proves it's you with a personal key. Make one, then paste it into the Shortcut.</p>
+  {% endif %}
+  <div class="actions justify-content-start">
+    <form method="post">{% csrf_token %}
+      <button class="btn {% if key %}btn-outline-secondary{% else %}btn-success{% endif %}" type="submit" name="action" value="create"
+              {% if key %}onclick="return confirm('Make a new key? The current one stops working.')"{% endif %}>
+        {% if key %}Make a new key{% else %}Make my key{% endif %}</button>
+    </form>
+    {% if key %}
+    <form method="post">{% csrf_token %}
+      <button class="btn btn-outline-danger" type="submit" name="action" value="revoke"
+              onclick="return confirm('Remove the key? Shortcuts using it will stop working.')">Remove key</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
+<section class="card card-body mb-3">
+  <h2 class="h5">2. Let your scale's app save to Health</h2>
+  <p class="mb-0">In your scale's app, turn on Apple Health (usually under <em>Settings → Apple Health</em> or
+     <em>Connected apps</em>) and allow it to write <strong>Weight</strong>. Weigh yourself once and check that it shows in the
+     Health app under <em>Browse → Body Measurements → Weight</em>.</p>
+</section>
+
+<section class="card card-body mb-3">
+  <h2 class="h5">3. Build the Shortcut</h2>
+  <p>In the <strong>Shortcuts</strong> app, tap <strong>＋</strong> to make a new shortcut called <em>Send weight</em>, and add these actions in order:</p>
+  <ol class="steps">
+    <li><strong>Find Health Samples</strong>: Type <em>Weight</em>, Sort by <em>Start Date</em>, Order <em>Latest First</em>, Limit <em>1</em>.</li>
+    <li><strong>Get Details of Health Samples</strong>: <em>Value</em>.</li>
+    <li><strong>Get Details of Health Samples</strong> (another one, on the same samples): <em>Unit</em>.</li>
+    <li><strong>Get Details of Health Samples</strong>: <em>Start Date</em>, then <strong>Format Date</strong>: Date Format <em>ISO 8601</em>, Include Time on.</li>
+    <li><strong>Get Contents of URL</strong>:
+      <div class="copy-row my-2">
+        <input class="form-control font-monospace" id="endpoint" value="{{ endpoint }}" readonly aria-label="Address to send weights to">
+        <button class="btn btn-outline-secondary" type="button" data-copy="#endpoint">Copy</button>
+      </div>
+      Method <em>POST</em>. Headers:
+      <ul>
+        <li><code>Authorization</code> = <code>Bearer </code> followed by your key (one space after Bearer)</li>
+        <li><code>ngrok-skip-browser-warning</code> = <code>1</code></li>
+      </ul>
+      Request Body <em>JSON</em>, with fields:
+      <ul>
+        <li><code>metric</code> (Text) = <code>Weight</code></li>
+        <li><code>value</code> (Number) = the <em>Value</em> from step 2</li>
+        <li><code>unit</code> (Text) = the <em>Unit</em> from step 3</li>
+        <li><code>recorded_at</code> (Text) = the <em>Formatted Date</em> from step 4</li>
+      </ul>
+    </li>
+    <li><strong>Get Dictionary Value</strong> <em>message</em>, then <strong>Show Notification</strong> with it (optional, so you see “Saved 72.4 kg to Weight.”).</li>
+  </ol>
+  <p class="hint mb-0">Run it once by hand. The first time, iPhone asks to allow access to Health and to this website; allow both.</p>
+</section>
+
+<section class="card card-body mb-3">
+  <h2 class="h5">4. Run it automatically</h2>
+  <p class="mb-0">In Shortcuts, open <strong>Automation → ＋ → App</strong>, choose your scale's app, tick <em>Is Closed</em>,
+     pick <em>Run Immediately</em>, and choose the <em>Send weight</em> shortcut. From now on, closing the scale's app sends the newest weight.
+     Sending the same weigh-in twice is fine; it's only saved once.</p>
+</section>
+
+{% if weight %}
+<p class="text-center"><a href="{% url 'todolist:metric' weight.id %}">See your Weight chart →</a></p>
+{% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.querySelectorAll("[data-copy]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var input = document.querySelector(b.dataset.copy);
+      input.select();
+      var done = function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 2000); };
+      if (navigator.clipboard) navigator.clipboard.writeText(input.value).then(done, function () { document.execCommand("copy"); done(); });
+      else { document.execCommand("copy"); done(); }
+    });
+  });
+</script>
+{% endblock %}

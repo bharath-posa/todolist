@@ -273,3 +273,10 @@ li.task { scroll-margin: 88px 0 160px; }   /* keep a highlighted task clear of t
 .row-menu-list .danger { color: #c92a2a; }
 .project-row .progress { position: relative; z-index: 1; pointer-events: none; }
 .task-check:not(:checked) { background-color: #fff; }   /* the old .prio-N badge fill must not paint the ring */
+
+/* Connect Apple Health page */
+.copy-row { display: flex; gap: .5rem; }
+.copy-row .form-control { min-width: 0; font-size: .85rem; }
+.connect-page .steps li { margin-bottom: .6rem; }
+.connect-page .actions { gap: .5rem; }
+.connect-page h2 { text-align: left; }

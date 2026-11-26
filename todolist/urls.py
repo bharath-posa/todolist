@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, views_extra
+from . import views, views_api, views_extra
 
 app_name = 'todolist'
 urlpatterns=[
@@ -25,5 +25,7 @@ urlpatterns=[
     path('metrics/<int:id>/delete/', views_extra.metric_delete, name='metric_delete'),
     path('metrics/entries/<int:id>/delete/', views_extra.entry_delete, name='entry_delete'),
     path('insights/', views_extra.insights, name='insights'),
+    path('metrics/connect/', views_api.health_connect, name='health_connect'),
+    path('api/metric-entries/', views_api.metric_entries, name='api_metric_entries'),
     
 ]

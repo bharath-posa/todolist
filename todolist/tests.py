@@ -1,4 +1,5 @@
 import datetime
+import json
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -497,3 +498,78 @@ class CalmerRows(Base):
         self.assertIn(p.color, body)
         self.assertIn("project-name stretched", body)
         self.assertEqual(Project(pk=1).color, Project(pk=9).color)   # stable palette by id
+
+
+class HealthSync(Base):
+    """Weigh-ins from Apple Health via an iPhone Shortcut and a personal key."""
+    URL = "/todolist/api/metric-entries/"
+
+    def setUp(self):
+        super().setUp()
+        from .views_api import new_key
+        self.key = new_key(self.alice)
+
+    def send(self, body, key=None, **kw):
+        return self.client.post(self.URL, data=json.dumps(body), content_type="application/json",
+                                HTTP_AUTHORIZATION=f"Bearer {key or self.key}", **kw)
+
+    def test_weight_is_saved_to_a_new_weight_metric(self):
+        res = self.send({"metric": "Weight", "value": 72.4, "unit": "kg", "recorded_at": "2026-11-26T07:45:00+05:30"})
+        self.assertEqual(res.status_code, 201, res.content)
+        self.assertEqual(res.json()["message"], "Saved 72.4 kg to Weight.")
+        m = Metric.objects.get(user=self.alice, name="Weight")
+        e = m.entries.get()
+        self.assertEqual((m.unit, e.value), ("kg", 72.4))
+        self.assertEqual(e.recorded_at.isoformat(), "2026-11-26T02:15:00+00:00")
+
+    def test_same_sample_sent_twice_is_saved_once(self):
+        body = {"value": "72,4", "unit": "kg", "recorded_at": "2026-11-26T07:45:00Z"}
+        self.assertEqual(self.send(body).status_code, 201)
+        res = self.send(body)
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(res.json()["created"])
+        self.assertEqual(MetricEntry.objects.count(), 1)
+
+    def test_pounds_are_converted_to_the_metric_unit(self):
+        Metric.objects.create(user=self.alice, name="Weight", unit="kg")
+        self.send({"value": "160 lb"})
+        self.assertEqual(MetricEntry.objects.get().value, 72.57)
+
+    def test_wrong_key_bad_values_and_get_are_refused(self):
+        self.assertEqual(self.send({"value": 70}, key="tl_nope").status_code, 401)
+        self.assertEqual(self.client.post(self.URL, {"value": 70}).status_code, 401)   # no key at all
+        self.assertEqual(self.send({"value": "abc"}).status_code, 400)
+        self.assertEqual(self.send({"value": -3}).status_code, 400)
+        self.assertEqual(self.send({"value": 70, "recorded_at": "yesterday"}).status_code, 400)
+        self.assertEqual(self.client.get(self.URL).status_code, 405)
+        self.assertEqual(MetricEntry.objects.count(), 0)
+
+    def test_key_only_writes_to_its_owner(self):
+        Metric.objects.create(user=self.bob, name="Weight", unit="kg")
+        self.send({"value": 80})
+        self.assertFalse(MetricEntry.objects.filter(metric__user=self.bob).exists())
+        self.assertTrue(MetricEntry.objects.filter(metric__user=self.alice).exists())
+
+    def test_only_a_hash_is_stored_and_a_new_key_replaces_the_old(self):
+        from .models import PersonalKey
+        from .views_api import new_key
+        pk = PersonalKey.objects.get(user=self.alice)
+        self.assertNotIn(self.key, pk.key_hash)
+        newer = new_key(self.alice)
+        self.assertEqual(self.send({"value": 70}).status_code, 401)
+        self.assertEqual(self.send({"value": 70}, key=newer).status_code, 201)
+
+    def test_connect_page_shows_a_new_key_once(self):
+        self.login(self.alice)
+        res = self.client.post("/todolist/metrics/connect/", {"action": "create"})
+        first = self.client.get(res["Location"]).content.decode()
+        self.assertIn('id="new-key" value="tl_', first)
+        self.assertIn("/todolist/api/metric-entries/", first)
+        again = self.client.get("/todolist/metrics/connect/").content.decode()
+        self.assertNotIn('id="new-key"', again)
+        self.client.post("/todolist/metrics/connect/", {"action": "revoke"})
+        from .models import PersonalKey
+        self.assertFalse(PersonalKey.objects.filter(user=self.alice).exists())
+
+    def test_connect_page_needs_sign_in(self):
+        self.assertEqual(self.client.get("/todolist/metrics/connect/").status_code, 302)
