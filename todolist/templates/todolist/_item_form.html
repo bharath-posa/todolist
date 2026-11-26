@@ -8,6 +8,7 @@
     {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors|join:" " }}</div>{% endif %}
 
     {% with f=form.todo_item %}{% include "todolist/_field.html" %}{% endwith %}
+    {% with f=form.project %}{% include "todolist/_field.html" %}{% endwith %}
 
     <div class="row g-3">
       <div class="col-sm-6">{% with f=form.start_date %}{% include "todolist/_field.html" %}{% endwith %}</div>

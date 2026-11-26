@@ -10,6 +10,24 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+  {% if user.is_authenticated %}
+  <nav class="topnav" aria-label="Main">
+    <div class="topnav-inner">
+      <a class="brand" href="{% url 'todolist:index' %}">Todo list</a>
+      <div class="navlinks">
+        <a href="{% url 'todolist:index' %}" {% if request.resolver_match.url_name == 'index' %}aria-current="page"{% endif %}>Tasks</a>
+        <a href="{% url 'todolist:projects' %}" {% if request.resolver_match.url_name in 'projects project_new project_edit' %}aria-current="page"{% endif %}>Projects</a>
+        <a href="{% url 'todolist:metrics' %}" {% if request.resolver_match.url_name in 'metrics metric' %}aria-current="page"{% endif %}>Metrics</a>
+        <a href="{% url 'todolist:insights' %}" {% if request.resolver_match.url_name == 'insights' %}aria-current="page"{% endif %}>Insights</a>
+      </div>
+      {% if player %}
+      <a class="player" href="{% url 'todolist:insights' %}" title="Your level, points and streak">
+        <span>Lv {{ player.level }}</span><span>{{ player.points }} pts</span>{% if player.streak %}<span>🔥 {{ player.streak }}</span>{% endif %}
+      </a>
+      {% endif %}
+    </div>
+  </nav>
+  {% endif %}
   <main class="container py-4 app">
     {% block content %}{% endblock %}
   </main>

@@ -1,0 +1,71 @@
+{% extends "todolist/base.html" %}
+{% block title %}Insights · Todo list{% endblock %}
+{% block content %}
+<h1 class="page-title">Insights</h1>
+
+<section class="level-card card card-body mb-3" aria-label="Level and streak">
+  <div class="level-head">
+    <div><span class="level-num">Level {{ stats.level }}</span><span class="text-muted"> · {{ stats.points }} points</span></div>
+    <div class="streak">🔥 {{ stats.streak }}-day streak <span class="text-muted">(best {{ stats.best_streak }})</span></div>
+  </div>
+  <div class="progress mt-2" role="progressbar" aria-label="Progress to the next level" aria-valuenow="{{ stats.level_progress }}" aria-valuemin="0" aria-valuemax="{{ stats.points_per_level }}">
+    <div class="progress-bar bg-success" data-progress="{% widthratio stats.level_progress stats.points_per_level 100 %}"></div>
+  </div>
+  <p class="hint mt-2 mb-0">{{ stats.level_progress }} / {{ stats.points_per_level }} points to level {{ stats.level|add:1 }} · {{ stats.points_today }} points today.
+    Finishing a task earns 5 × its priority; each pomodoro earns 2.</p>
+</section>
+
+<dl class="stat-grid">
+  <div><dt>Tasks finished</dt><dd>{{ stats.tasks_done }}</dd></div>
+  <div><dt>Pomodoros</dt><dd>{{ stats.pomodoros }}</dd></div>
+  <div><dt>Current streak</dt><dd>{{ stats.streak }} day{{ stats.streak|pluralize }}</dd></div>
+  <div><dt>Best streak</dt><dd>{{ stats.best_streak }} day{{ stats.best_streak|pluralize }}</dd></div>
+</dl>
+
+<div class="card card-body mb-3 chart-card"><h2 class="h6">Last 30 days</h2><canvas id="daily-chart" role="img" aria-label="Tasks finished and pomodoros per day"></canvas></div>
+<div class="card card-body mb-3 chart-card"><h2 class="h6">By priority</h2><canvas id="priority-chart" role="img" aria-label="Tasks finished and open by priority"></canvas></div>
+
+{% if projects %}
+<section class="card card-body mb-3">
+  <h2 class="h6">Projects</h2>
+  {% for p in projects %}
+  <div class="mb-2">
+    <div class="project-head"><span>{{ p.name }}</span><span class="project-count">{{ p.done }} of {{ p.total }}</span></div>
+    <div class="progress"><div class="progress-bar bg-success" data-progress="{% if p.total %}{% widthratio p.done p.total 100 %}{% else %}0{% endif %}"></div></div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="card card-body mb-3">
+  <h2 class="h6">Badges</h2>
+  <ul class="badges">
+    {% for b in stats.badges %}<li class="{% if b.earned %}earned{% endif %}" title="{{ b.description }}"><strong>{{ b.name }}</strong><span>{{ b.description }}</span></li>{% endfor %}
+  </ul>
+</section>
+
+{{ series|json_script:"series-data" }}
+{{ priority_chart|json_script:"priority-data" }}
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  document.querySelectorAll('[data-progress]').forEach(function (el) { el.style.width = el.dataset.progress + '%'; });
+  var s = JSON.parse(document.getElementById('series-data').textContent);
+  new Chart(document.getElementById('daily-chart'), {
+    type: 'bar',
+    data: { labels: s.labels, datasets: [
+      { label: 'Tasks finished', data: s.tasks, backgroundColor: '#198754' },
+      { label: 'Pomodoros', data: s.pomodoros, backgroundColor: '#fd7e14' } ] },
+    options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+  var p = JSON.parse(document.getElementById('priority-data').textContent);
+  new Chart(document.getElementById('priority-chart'), {
+    type: 'bar',
+    data: { labels: p.labels, datasets: [
+      { label: 'Finished', data: p.done, backgroundColor: '#198754' },
+      { label: 'Still open', data: p.open, backgroundColor: '#adb5bd' } ] },
+    options: { indexAxis: 'y', maintainAspectRatio: false, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+</script>
+{% endblock %}

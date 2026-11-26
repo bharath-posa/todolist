@@ -236,3 +236,124 @@ class AuthPages(TestCase):
         User.objects.create_user("gina", password="Cobalt-Fern-482")
         res = self.client.post("/todolist/login/?next=https://evil.example/", {"username": "gina", "password": "Cobalt-Fern-482"})
         self.assertEqual(res["Location"], "/todolist/")
+
+
+from . import game  # noqa: E402
+from .models import Activity, Metric, MetricEntry, Project  # noqa: E402
+
+
+class Projects(Base):
+    def test_create_assign_and_progress(self):
+        self.login(self.alice)
+        res = self.client.post("/todolist/projects/new/", {"name": "  Move   house ", "description": "Boxes"})
+        self.assertEqual(res.status_code, 302)
+        project = Project.objects.get(user=self.alice)
+        self.assertEqual(project.name, "Move house")
+        self.client.post("/todolist/additem/", {**FORM, "project": project.id})
+        item = Item.objects.get(todo_item="Stretch")
+        self.assertEqual(item.project, project)
+        Item.objects.filter(pk=item.pk).update(status=True)
+        page = self.client.get("/todolist/projects/").content.decode()
+        self.assertIn("1 of 1 done", page)
+
+    def test_duplicate_name_rejected(self):
+        Project.objects.create(user=self.alice, name="Garden")
+        self.login(self.alice)
+        res = self.client.post("/todolist/projects/new/", {"name": "garden"})
+        self.assertContains(res, "already have a project")
+
+    def test_cannot_use_or_touch_someone_elses_project(self):
+        theirs = Project.objects.create(user=self.bob, name="Bob's")
+        self.login(self.alice)
+        res = self.client.post("/todolist/additem/", {**FORM, "project": theirs.id})
+        self.assertEqual(res.status_code, 200)  # invalid choice
+        self.assertFalse(Item.objects.filter(todo_item="Stretch").exists())
+        self.assertEqual(self.client.get(f"/todolist/projects/{theirs.id}/edit/").status_code, 404)
+        self.assertEqual(self.client.post(f"/todolist/projects/{theirs.id}/delete/").status_code, 404)
+        self.assertNotContains(self.client.get("/todolist/"), "Bob&#x27;s")
+
+    def test_delete_keeps_tasks(self):
+        project = Project.objects.create(user=self.alice, name="Temp")
+        Item.objects.filter(pk=self.item.pk).update(project=project)
+        self.login(self.alice)
+        self.assertEqual(self.client.get(f"/todolist/projects/{project.id}/delete/").status_code, 405)
+        self.client.post(f"/todolist/projects/{project.id}/delete/")
+        self.item.refresh_from_db()
+        self.assertIsNone(self.item.project)
+
+
+class Metrics(Base):
+    def test_track_values(self):
+        self.login(self.alice)
+        res = self.client.post("/todolist/metrics/", {"name": "Body weight", "unit": "kg"})
+        metric = Metric.objects.get(user=self.alice)
+        self.assertRedirects(res, f"/todolist/metrics/{metric.id}/")
+        for value, when in ((82.5, "2026-01-01T08:00"), (81.0, "2026-01-15T08:00")):
+            self.client.post(f"/todolist/metrics/{metric.id}/", {"value": value, "recorded_at": when, "note": ""})
+        page = self.client.get(f"/todolist/metrics/{metric.id}/")
+        self.assertContains(page, "metric-chart")
+        self.assertEqual(page.context["summary"]["change"], -1.5)
+        self.assertEqual(page.context["chart"]["values"], [82.5, 81.0])
+
+    def test_metrics_are_private(self):
+        theirs = Metric.objects.create(user=self.bob, name="Bob weight")
+        entry = MetricEntry.objects.create(metric=theirs, value=90)
+        self.login(self.alice)
+        self.assertEqual(self.client.get(f"/todolist/metrics/{theirs.id}/").status_code, 404)
+        self.assertEqual(self.client.post(f"/todolist/metrics/entries/{entry.id}/delete/").status_code, 404)
+        self.assertNotContains(self.client.get("/todolist/metrics/"), "Bob weight")
+
+
+class Game(Base):
+    def toggle(self, item):
+        return self.client.post("/todolist/ajax/update_item_status", f"id={item.id}",
+                                content_type="application/x-www-form-urlencoded")
+
+    def test_points_for_done_and_taken_back_on_undo(self):
+        item = make_item(self.alice, itemPriority=4)
+        self.login(self.alice)
+        self.toggle(item)
+        self.assertEqual(game.stats(self.alice)["points"], 20)
+        self.toggle(item)  # un-tick: points removed, no farming
+        self.assertEqual(game.stats(self.alice)["points"], 0)
+        item.refresh_from_db()
+        self.assertIsNone(item.completed_at)
+
+    def test_pomodoros_and_auto_complete(self):
+        item = make_item(self.alice, itemPriority=2, pomodoro_estimate=2, autoCompletePomodoro=True)
+        self.login(self.alice)
+        for _ in range(2):
+            self.client.post("/todolist/pomodorotimer/ajax/updatepomodoro", f"id={item.id}",
+                             content_type="application/x-www-form-urlencoded")
+        s = game.stats(self.alice)
+        self.assertEqual((s["pomodoros"], s["tasks_done"], s["points"]), (2, 1, 2 * 2 + 10))
+        item.refresh_from_db()
+        self.assertTrue(item.status)
+
+    def test_edit_marking_done_counts(self):
+        self.login(self.alice)
+        self.client.post(f"/todolist/editItem/{self.item.id}", {**FORM, "status": "on"})
+        self.assertEqual(game.stats(self.alice)["tasks_done"], 1)
+
+    def test_streaks_and_levels(self):
+        today = datetime.date(2026, 3, 10)
+        for days_ago in (0, 1, 2, 5, 6):
+            when = timezone.make_aware(datetime.datetime.combine(today - datetime.timedelta(days=days_ago), datetime.time(12)))
+            Activity.objects.create(user=self.alice, kind=Activity.TASK_DONE, points=40, created_at=when)
+        s = game.stats(self.alice, today=today)
+        self.assertEqual((s["streak"], s["best_streak"]), (3, 3))
+        self.assertEqual((s["points"], s["level"], s["level_progress"]), (200, 3, 0))
+        earned = {b["id"] for b in s["badges"] if b["earned"]}
+        self.assertTrue({"first-task", "streak-3"} <= earned)
+        self.assertNotIn("streak-7", earned)
+        # yesterday still keeps the streak alive before doing anything today
+        self.assertEqual(game.stats(self.alice, today=today + datetime.timedelta(days=1))["streak"], 3)
+        self.assertEqual(game.stats(self.alice, today=today + datetime.timedelta(days=2))["streak"], 0)
+
+    def test_insights_page_and_nav(self):
+        self.login(self.alice)
+        self.toggle(self.item)
+        page = self.client.get("/todolist/insights/")
+        self.assertContains(page, "daily-chart")
+        self.assertEqual(page.context["series"]["tasks"][-1], 1)
+        self.assertContains(self.client.get("/todolist/"), "Lv 1")

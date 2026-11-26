@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, HttpResponseRedirect
-from .models import Item, DeleteItem, CustomUser, RecurringItemStatus, PRIORITY_CHOICES, split_tags
+from .models import Item, DeleteItem, CustomUser, Project, RecurringItemStatus, PRIORITY_CHOICES, split_tags
 from django import forms
 from .forms import ItemForm, ItemUpdateForm, CustomUserForm
 from django.shortcuts import redirect
@@ -14,6 +14,8 @@ from django.contrib.auth.decorators import login_required
 import datetime
 from django.db.models import Q
 from django.utils import timezone
+
+from . import game
 #from django.db.models import Item
 # Create your views here.
 
@@ -22,7 +24,7 @@ def index(request):
     user = request.user
     today = timezone.localdate()
     reset_recurring_items(user, today)
-    items = Item.objects.filter(user=user)
+    items = Item.objects.filter(user=user).select_related('project')
     recurring_items = items.filter(recurring_task=True).order_by('status', '-itemPriority')
     completed_items = items.filter(status=True).order_by('-due_date')
     list_of_items = items.filter(recurring_task=False, status=False).order_by('due_date')
@@ -40,6 +42,7 @@ def index(request):
         'today_items': today_items, 'recurring_items': recurring_items, 'list_of_items': list_of_items,
         'completed_items': completed_items, 'logged_user': user.username, 'all_tags': all_tags,
         'priority_choices': PRIORITY_CHOICES, 'now': timezone.now(),
+        'projects': Project.objects.filter(user=user, archived=False), 'active_nav': 'tasks',
     }
     return render(request, 'todolist/index.html', context)
 
@@ -56,7 +59,7 @@ def thanks(request):
 @login_required
 def additem(request):
     if request.method == 'POST':
-        form = ItemForm(request.POST)
+        form = ItemForm(request.POST, user=request.user)
         if form.is_valid():
             item = form.save(commit=False)
             item.user = request.user
@@ -69,7 +72,8 @@ def additem(request):
             return redirect('todolist:index')
     else:
         now = timezone.localtime().replace(second=0, microsecond=0)
-        form = ItemForm(initial={'start_date': now, 'due_date': now + datetime.timedelta(days=1)})
+        form = ItemForm(initial={'start_date': now, 'due_date': now + datetime.timedelta(days=1),
+                                 'project': request.GET.get('project')}, user=request.user)
     return render(request, 'todolist/additem.html', {'form': form, 'title': 'New task', 'submit_label': 'Add task'})
 
 
@@ -77,37 +81,31 @@ def additem(request):
 def edit_item(request, id):
     item = get_object_or_404(Item, id=id, user=request.user)
     if request.method == "POST":
-        was_recurring = item.recurrence
-        form = ItemUpdateForm(request.POST, instance=item)
+        was_recurring, was_done = item.recurrence, item.status
+        form = ItemUpdateForm(request.POST, instance=item, user=request.user)
         if form.is_valid():
             item = form.save(commit=False)
             if item.recurrence != "none" and (was_recurring == "none" or item.last_reset is None):
                 item.last_reset = timezone.localdate()
             item.save()
+            game.status_changed(item, was_done, item.status)
             return redirect('todolist:index')
     else:
-        form = ItemUpdateForm(instance=item)
+        form = ItemUpdateForm(instance=item, user=request.user)
     return render(request, 'todolist/editItem.html', {'form': form, 'title': 'Edit task', 'submit_label': 'Save changes', 'item': item})
 
 
 @login_required
 def update_item_status(request):
-    if request.user.is_authenticated:
-        user = request.user
-        if request.method == 'POST':
-            item_id = int(QueryDict(request.body)['id'])
-            updateItem = get_object_or_404(Item, id=item_id, user=request.user)
-            # Check the condition for pomodoro complete 
-            
-            update_status = False
-            present_status = updateItem.status
-            if present_status == False:
-                updated_status = True
-            else:
-                updated_status = False
-            Item.objects.filter(pk=item_id, user=request.user).update(status=updated_status)
-            
-        return JsonResponse({"ok": True})
+    if request.method != 'POST':
+        return JsonResponse({"ok": False}, status=405)
+    item_id = int(QueryDict(request.body)['id'])
+    item = get_object_or_404(Item, id=item_id, user=request.user)
+    was_done = item.status
+    Item.objects.filter(pk=item.pk, user=request.user).update(status=not was_done)
+    game.status_changed(item, was_done, not was_done)
+    return JsonResponse({"ok": True, "status": not was_done})
+
 
 @login_required
 def deleteItem(request,id):
@@ -148,31 +146,20 @@ def pomodoroTimer(request,id):
 
 @login_required
 def updatePomodoroCount(request):
-    if request.method == 'POST':
-        item_id = QueryDict(request.body)['id']
-        user = request.user
-        pomodoro_item = get_object_or_404(Item, id=item_id, user=request.user)
-        
-        if pomodoro_item:
-            count = pomodoro_item.pomodoro_completed  + 1
-            Item.objects.filter(pk=item_id, user=request.user).update(pomodoro_completed=count)
+    if request.method != 'POST':
+        return JsonResponse({"ok": False}, status=405)
+    item_id = QueryDict(request.body)['id']
+    item = get_object_or_404(Item, id=item_id, user=request.user)
+    count = item.pomodoro_completed + 1
+    Item.objects.filter(pk=item.pk, user=request.user).update(pomodoro_completed=count)
+    game.record_pomodoro(item)
+    if item.autoCompletePomodoro and item.pomodoro_estimate == count and not item.status:
+        Item.objects.filter(pk=item.pk, user=request.user).update(status=True)
+        game.record_task_done(item)
+    RecurringItemStatus.objects.create(user=request.user, item_id=item.pk, pomodoro_estimated=item.pomodoro_estimate,
+                                       pomodoro_completed=count, event_time=timezone.now())
+    return JsonResponse({'id': item_id, 'pomdoro_completed': count})
 
-            if pomodoro_item.autoCompletePomodoro and pomodoro_item.pomodoro_estimate == count:
-                Item.objects.filter(pk=item_id, user=request.user).update(status=True)
-
-            
-            itemDict = {'id':item_id, 'pomdoro_completed':count}
-
-            recurItem = RecurringItemStatus(
-                user=user,
-                item_id=item_id,
-                pomodoro_estimated=pomodoro_item.pomodoro_estimate,
-                pomodoro_completed=count,
-                event_time=datetime.datetime.now()
-            )
-            recurItem.save()
-            return HttpResponse(json.dumps(itemDict), content_type='application/json')           
-            
 
 def addUser(request):
     form = UserCreationForm(request.POST or None)

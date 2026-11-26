@@ -1,0 +1,36 @@
+{% extends "todolist/base.html" %}
+{% block title %}Projects · Todo list{% endblock %}
+{% block content %}
+<h1 class="page-title">Projects</h1>
+<div class="actions"><a class="btn btn-success" href="{% url 'todolist:project_new' %}">＋ New project</a></div>
+<ul class="list-group">
+  {% for p in projects %}
+  <li class="list-group-item project-row{% if p.archived %} archived{% endif %}">
+    <div class="project-head">
+      <strong>{{ p.name }}</strong>
+      {% if p.archived %}<span class="badge bg-secondary">Archived</span>{% endif %}
+      <span class="project-count">{{ p.done }} of {{ p.total }} done</span>
+    </div>
+    {% if p.description %}<p class="project-desc">{{ p.description }}</p>{% endif %}
+    <div class="progress" role="progressbar" aria-label="{{ p.name }} progress" aria-valuenow="{{ p.done }}" aria-valuemin="0" aria-valuemax="{{ p.total }}">
+      <div class="progress-bar bg-success" data-progress="{% if p.total %}{% widthratio p.done p.total 100 %}{% else %}0{% endif %}"></div>
+    </div>
+    <div class="task-actions">
+      <a class="btn btn-sm btn-outline-success" href="{% url 'todolist:additem' %}?project={{ p.id }}">＋ Add task</a>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'todolist:project_edit' p.id %}">✏️ Edit</a>
+      <form method="post" action="{% url 'todolist:project_delete' p.id %}" class="d-inline" onsubmit="return confirm('Delete this project? Its tasks are kept, without a project.')">
+        {% csrf_token %}<button class="btn btn-sm btn-outline-danger" type="submit">🗑️ Delete</button>
+      </form>
+    </div>
+  </li>
+  {% empty %}
+  <li class="list-group-item empty">No projects yet. Create one to group related tasks.</li>
+  {% endfor %}
+</ul>
+<p class="hint mt-3">Tasks without a project: {{ unassigned.done }} of {{ unassigned.total }} done.</p>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.querySelectorAll('[data-progress]').forEach(function (el) { el.style.width = el.dataset.progress + '%'; });
+</script>
+{% endblock %}
