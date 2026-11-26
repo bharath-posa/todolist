@@ -25,6 +25,20 @@ def projects(request):
 
 
 @login_required
+def project_detail(request, id):
+    project = get_object_or_404(_with_progress(Project.objects.filter(user=request.user)), id=id)
+    items = Item.objects.filter(user=request.user, project=project).select_related("project")
+    highlight = None
+    hid = request.GET.get("added") or request.GET.get("updated")
+    if hid and hid.isdigit():
+        highlight = items.filter(id=int(hid)).first()
+    return render(request, "todolist/project_detail.html", {
+        "project": project, "open_items": items.filter(status=False).order_by("-itemPriority", "due_date"),
+        "done_items": items.filter(status=True).order_by("-completed_at"), "now": timezone.now(),
+        "highlight": highlight, "verb": "Added" if "added" in request.GET else "Saved"})
+
+
+@login_required
 def project_edit(request, id=None):
     project = get_object_or_404(Project, id=id, user=request.user) if id else None
     form = ProjectForm(request.POST or None, instance=project, user=request.user)

@@ -1,0 +1,33 @@
+{% extends "todolist/base.html" %}
+{% block title %}{{ project.name }} · Todo list{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{% url 'todolist:projects' %}">← Projects</a></p>
+<h1 class="page-title">📁 {{ project.name }}</h1>
+{% if project.description %}<p class="signed-in">{{ project.description }}</p>{% endif %}
+{% if project.archived %}<p class="text-center"><span class="badge bg-secondary">Archived</span></p>{% endif %}
+
+{% if highlight %}
+<div class="alert alert-success saved-banner" role="status" data-highlight-id="{{ highlight.id }}">
+  {{ verb }} “{{ highlight.todo_item }}”{% if highlight.project_id == project.id %} in this project{% endif %}.
+</div>
+{% endif %}
+
+<div class="project-summary">
+  <span>{{ project.done }} of {{ project.total }} done</span>
+  <div class="progress"><div class="progress-bar bg-success" data-progress="{% if project.total %}{% widthratio project.done project.total 100 %}{% else %}0{% endif %}"></div></div>
+</div>
+
+<div class="actions">
+  <a class="btn btn-success" href="{% url 'todolist:additem' %}?project={{ project.id }}&amp;next={{ request.path|urlencode }}">＋ Add task to this project</a>
+  <a class="btn btn-outline-secondary" href="{% url 'todolist:project_edit' project.id %}">Edit project</a>
+</div>
+
+<h2 class="h6">To do <span class="text-muted">({{ open_items|length }})</span></h2>
+{% include "todolist/_list.html" with items=open_items empty="Nothing left to do here." hide_project=True %}
+
+<h2 class="h6 mt-3">Done <span class="text-muted">({{ done_items|length }})</span></h2>
+{% include "todolist/_list.html" with items=done_items empty="Nothing finished yet." hide_project=True %}
+{% endblock %}
+{% block scripts %}
+<script>document.querySelectorAll('[data-progress]').forEach(function (el) { el.style.width = el.dataset.progress + '%'; });</script>
+{% endblock %}

@@ -10,11 +10,19 @@
   </div>
 </header>
 
+{% if highlight %}
+<div class="alert alert-success saved-banner" role="status" data-highlight-id="{{ highlight.id }}"
+     data-highlight-tab="{{ highlight.tabs|first|default:'Today' }}">
+  {{ highlight.verb }} “{{ highlight.title }}”.
+  {% if highlight.tabs %}You'll find it under {{ highlight.tab_labels|join:" and " }}.{% endif %}
+</div>
+{% endif %}
+
 <section class="filters card card-body" aria-label="Filters">
   <div class="row g-2">
     <div class="col-md-3">
       <label class="form-label" for="filter-project">Project</label>
-      <select class="form-select" id="filter-project">
+      <select class="form-select" id="filter-project" autocomplete="off">
         <option value="">All projects</option>
         {% for p in projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
         <option value="none">No project</option>
@@ -22,21 +30,21 @@
     </div>
     <div class="col-md-3">
       <label class="form-label" for="filter-priority">Priority</label>
-      <select class="form-select" id="filter-priority">
+      <select class="form-select" id="filter-priority" autocomplete="off">
         <option value="0">All priorities</option>
         {% for value, label in priority_choices %}<option value="{{ value }}">{{ value }}. {{ label }}</option>{% endfor %}
       </select>
     </div>
     <div class="col-md-3">
       <label class="form-label" for="filter-tag">Tag</label>
-      <select class="form-select" id="filter-tag">
+      <select class="form-select" id="filter-tag" autocomplete="off">
         <option value="">All tags</option>
         {% for tag in all_tags %}<option value="{{ tag|lower }}">#{{ tag }}</option>{% endfor %}
       </select>
     </div>
     <div class="col-md-3">
       <label class="form-label" for="filter-text">Search</label>
-      <input class="form-control" id="filter-text" type="search" placeholder="Find a task">
+      <input class="form-control" id="filter-text" type="search" placeholder="Find a task" autocomplete="off">
     </div>
   </div>
 </section>
@@ -63,50 +71,4 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-<script>
-  function toggle_status(id, box) {
-    $.ajax({
-      type: 'POST',
-      headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-      url: 'ajax/update_item_status',
-      data: { 'id': id },
-      dataType: 'json',
-      success: function () { $(box).closest('li.task').toggleClass('done', box.checked); },
-      error: function () { box.checked = !box.checked; alert('Could not update the task. Reload and try again.'); }
-    });
-  }
-
-  // Priority, tag and search filters combine; each change re-evaluates every task (#44, #29).
-  function applyFilters() {
-    var prio = $('#filter-priority').val(), tag = $('#filter-tag').val(), text = $('#filter-text').val().toLowerCase().trim();
-    var project = $('#filter-project').val();
-    $('.task-list').each(function () {
-      var shown = 0, total = 0;
-      $(this).find('li.task').each(function () {
-        var tags = ($(this).data('tags') || '').toString().split(',').map(function (t) { return t.trim(); });
-        var ok = (prio == '0' || String($(this).data('priority')) === prio)
-              && (!project || String($(this).data('project')) === project)
-              && (!tag || tags.indexOf(tag) !== -1)
-              && (!text || String($(this).data('text')).indexOf(text) !== -1);
-        $(this).toggle(ok); total++; if (ok) shown++;
-      });
-      $(this).find('.filtered-empty').prop('hidden', !(total > 0 && shown === 0));
-    });
-  }
-  $('#filter-priority, #filter-tag, #filter-project').on('change', applyFilters);
-  $('#filter-text').on('input', applyFilters);
-
-  function openTab(name) {
-    $('.tabcontent').prop('hidden', true);
-    $('#' + name).prop('hidden', false);
-    $('.tablink').removeClass('active').attr('aria-selected', 'false');
-    $('.tablink[data-tab="' + name + '"]').addClass('active').attr('aria-selected', 'true');
-    try { sessionStorage.setItem('todolist.tab', name); } catch (e) {}
-  }
-  $('.tablink').on('click', function () { openTab($(this).data('tab')); });
-  var saved = null; try { saved = sessionStorage.getItem('todolist.tab'); } catch (e) {}
-  openTab(saved && $('#' + saved).length ? saved : 'Today');
-</script>
-{% endblock %}
+{% block scripts %}{% endblock %}

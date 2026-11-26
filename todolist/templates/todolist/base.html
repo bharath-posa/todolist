@@ -7,6 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
   <link rel="stylesheet" href="{% static 'todolist/style.css' %}">
+  <meta name="csrf-token" content="{{ csrf_token }}">
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -16,7 +17,7 @@
       <a class="brand" href="{% url 'todolist:index' %}">Todo list</a>
       <div class="navlinks">
         <a href="{% url 'todolist:index' %}" {% if request.resolver_match.url_name == 'index' %}aria-current="page"{% endif %}>Tasks</a>
-        <a href="{% url 'todolist:projects' %}" {% if request.resolver_match.url_name in 'projects project_new project_edit' %}aria-current="page"{% endif %}>Projects</a>
+        <a href="{% url 'todolist:projects' %}" {% if request.resolver_match.url_name in 'projects project project_new project_edit' %}aria-current="page"{% endif %}>Projects</a>
         <a href="{% url 'todolist:metrics' %}" {% if request.resolver_match.url_name in 'metrics metric' %}aria-current="page"{% endif %}>Metrics</a>
         <a href="{% url 'todolist:insights' %}" {% if request.resolver_match.url_name == 'insights' %}aria-current="page"{% endif %}>Insights</a>
       </div>
@@ -31,6 +32,7 @@
   <main class="container py-4 app">
     {% block content %}{% endblock %}
   </main>
+  <script src="{% static 'todolist/app.js' %}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

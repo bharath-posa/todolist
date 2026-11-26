@@ -357,3 +357,48 @@ class Game(Base):
         self.assertContains(page, "daily-chart")
         self.assertEqual(page.context["series"]["tasks"][-1], 1)
         self.assertContains(self.client.get("/todolist/"), "Lv 1")
+
+
+class SavedTaskIsEasyToFind(Base):
+    """Regression: a task added under a project seemed to disappear (wrong tab, no project task list)."""
+
+    def setUp(self):
+        super().setUp()
+        self.project = Project.objects.create(user=self.alice, name="Get fit")
+        self.login(self.alice)
+
+    def test_add_from_project_returns_to_project_page_with_the_task(self):
+        url = f"/todolist/additem/?project={self.project.id}&next=/todolist/projects/{self.project.id}/"
+        res = self.client.post(url, {**FORM, "project": self.project.id, "recurrence": "daily"})
+        item = Item.objects.get(todo_item="Stretch")
+        self.assertEqual(res["Location"], f"/todolist/projects/{self.project.id}/?added={item.id}")
+        page = self.client.get(res["Location"])
+        self.assertContains(page, 'data-highlight-id="%d"' % item.id)
+        self.assertIn(item, page.context["open_items"])
+
+    def test_add_from_home_names_the_tabs_it_landed_in(self):
+        res = self.client.post("/todolist/additem/", {**FORM, "project": self.project.id, "recurrence": "daily"})
+        item = Item.objects.get(todo_item="Stretch")
+        self.assertEqual(res["Location"], f"/todolist/?added={item.id}")
+        page = self.client.get(res["Location"])
+        self.assertEqual(page.context["highlight"]["tabs"], ["Today", "Recurring"])
+        self.assertContains(page, "under Today and Repeating")
+
+    def test_next_outside_the_app_is_ignored(self):
+        res = self.client.post("/todolist/additem/?next=https://evil.example/", FORM)
+        self.assertTrue(res["Location"].startswith("/todolist/?added="))
+
+    def test_project_page_is_private(self):
+        self.client.force_login(self.bob)
+        self.assertEqual(self.client.get(f"/todolist/projects/{self.project.id}/").status_code, 404)
+
+
+class TabStyles(TestCase):
+    """Regression: an old `.tabcontent { display: none }` rule hid every task list."""
+
+    def test_stylesheet_does_not_hide_tab_panels(self):
+        import re
+        from django.contrib.staticfiles import finders
+        css = open(finders.find("todolist/style.css")).read()
+        for block in re.findall(r"\.tabcontent\s*\{([^}]*)\}", css):
+            self.assertNotIn("display: none", block.replace("display:none", "display: none"))

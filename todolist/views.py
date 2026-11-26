@@ -38,7 +38,19 @@ def index(request):
         for t in split_tags(tags):
             by_lower.setdefault(t.lower(), t)   # one entry per tag, ignoring case
     all_tags = [by_lower[k] for k in sorted(by_lower)]
+    highlight = None
+    hid = request.GET.get('added') or request.GET.get('updated')
+    if hid and hid.isdigit():
+        item = items.filter(id=int(hid)).first()
+        if item:
+            tabs = [name for name, qs in (("Today", today_items), ("Recurring", recurring_items),
+                                          ("Unit", list_of_items), ("Completed", completed_items))
+                    if qs.filter(id=item.id).exists()]
+            labels = {"Today": "Today", "Recurring": "Repeating", "Unit": "One-off", "Completed": "Completed"}
+            highlight = {"id": item.id, "title": item.todo_item, "tabs": tabs,
+                         "tab_labels": [labels[t] for t in tabs], "verb": "Added" if 'added' in request.GET else "Saved"}
     context = {
+        'highlight': highlight,
         'today_items': today_items, 'recurring_items': recurring_items, 'list_of_items': list_of_items,
         'completed_items': completed_items, 'logged_user': user.username, 'all_tags': all_tags,
         'priority_choices': PRIORITY_CHOICES, 'now': timezone.now(),
@@ -56,6 +68,14 @@ def thanks(request):
     return  render(request, 'todolist/thanks.html', context)
 
 
+def _back(request, item, flag):
+    """After saving a task: return to ?next (same app only) or the task list, highlighting the task."""
+    target = request.GET.get('next') or request.POST.get('next') or ''
+    if not (target.startswith('/todolist/') and not target.startswith('//')):
+        target = reverse('todolist:index')
+    return redirect(f"{target.split('?')[0]}?{flag}={item.id}")
+
+
 @login_required
 def additem(request):
     if request.method == 'POST':
@@ -69,7 +89,7 @@ def additem(request):
             if item.recurrence != "none":
                 item.last_reset = timezone.localdate()
             item.save()
-            return redirect('todolist:index')
+            return _back(request, item, 'added')
     else:
         now = timezone.localtime().replace(second=0, microsecond=0)
         form = ItemForm(initial={'start_date': now, 'due_date': now + datetime.timedelta(days=1),
@@ -89,7 +109,7 @@ def edit_item(request, id):
                 item.last_reset = timezone.localdate()
             item.save()
             game.status_changed(item, was_done, item.status)
-            return redirect('todolist:index')
+            return _back(request, item, 'updated')
     else:
         form = ItemUpdateForm(instance=item, user=request.user)
     return render(request, 'todolist/editItem.html', {'form': form, 'title': 'Edit task', 'submit_label': 'Save changes', 'item': item})
