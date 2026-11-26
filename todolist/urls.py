@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, views_extra
+from . import views, views_extra, views_push
 
 app_name = 'todolist'
 urlpatterns=[
@@ -25,5 +25,12 @@ urlpatterns=[
     path('metrics/<int:id>/delete/', views_extra.metric_delete, name='metric_delete'),
     path('metrics/entries/<int:id>/delete/', views_extra.entry_delete, name='entry_delete'),
     path('insights/', views_extra.insights, name='insights'),
+    path('sw.js', views_push.service_worker, name='service_worker'),
+    path('manifest.webmanifest', views_push.manifest, name='manifest'),
+    path('notifications/', views_push.notifications, name='notifications'),
+    path('notifications/subscribe/', views_push.subscribe, name='push_subscribe'),
+    path('notifications/unsubscribe/', views_push.unsubscribe, name='push_unsubscribe'),
+    path('notifications/test/', views_push.test, name='push_test'),
+    path('notifications/devices/<int:id>/remove/', views_push.remove_device, name='push_remove_device'),
     
 ]

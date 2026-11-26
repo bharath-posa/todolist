@@ -48,3 +48,25 @@ DJANGO_DB_HOST=... DJANGO_DB_PASSWORD=... DJANGO_DEBUG=true python manage.py loa
 With PostgreSQL in Docker: `docker compose exec db pg_dump -U todolist todolist > backup.sql`.
 (`backupDb2Git.py` is the original SQLite-to-GitHub backup script; it needs a token and isn't used by the
 Docker setup.)
+
+## Notifications (Web Push)
+Reminders need a VAPID key and a second process that checks once a minute.
+
+1. Make a key (P-256, PEM) and keep it secret; changing it later means every device must turn
+   notifications on again:
+   ```bash
+   openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out vapid_private.pem
+   ```
+2. Give it to the web app **and** the notifier: `DJANGO_VAPID_PRIVATE_KEY_FILE=/run/secrets/vapid_private.pem`.
+   `DJANGO_VAPID_SUBJECT` (optional) is the contact push services see; it defaults to `DJANGO_PUBLIC_ORIGIN`
+   and must start with `https://` or `mailto:`.
+3. Run the notifier with the same image and settings: `python manage.py run_notifier` (or
+   `run_notifier --once` from cron every minute). It needs outbound HTTPS to the push services
+   (`web.push.apple.com`, `fcm.googleapis.com`, `updates.push.services.mozilla.com`).
+
+The app serves `/todolist/sw.js` (service worker, with `Service-Worker-Allowed: /todolist/`) and
+`/todolist/manifest.webmanifest`. Without a key the app works as before and the Notifications page says
+notifications aren't set up.
+
+Behind ngrok's free plan, the first visit from a new browser (and the first launch of the Home Screen app,
+which keeps its own cookies) shows ngrok's warning page once; after **Visit Site** everything works.

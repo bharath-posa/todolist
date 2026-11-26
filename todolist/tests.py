@@ -1,4 +1,5 @@
 import datetime
+import json
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -549,3 +550,121 @@ class DesignSystem(Base):
         body = self.client.get("/todolist/login/").content.decode()
         self.assertNotIn('class="sidebar"', body)
         self.assertIn("<main", body)
+
+
+class Notifications(Base):
+    """Web Push reminders: install pieces, device sign-up, and the reminder rules."""
+
+    def setUp(self):
+        super().setUp()
+        import tempfile
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
+        from django.test import override_settings
+        from . import push
+        key = ec.generate_private_key(ec.SECP256R1())
+        f = tempfile.NamedTemporaryFile(suffix=".pem", delete=False)
+        f.write(key.private_bytes(Encoding.PEM, PrivateFormat.PKCS8, NoEncryption())); f.close()
+        self.override = override_settings(VAPID_PRIVATE_KEY_FILE=f.name, VAPID_SUBJECT="https://example.test")
+        self.override.enable()
+        push._private_key.cache_clear()
+        self.addCleanup(lambda: (self.override.disable(), push._private_key.cache_clear()))
+        self.sent = []
+        import pywebpush
+        from unittest import mock
+        patcher = mock.patch.object(pywebpush, "webpush", side_effect=lambda sub, data, **kw: self.sent.append((sub["endpoint"], json.loads(data))))
+        patcher.start(); self.addCleanup(patcher.stop)
+
+    def subscribe(self, user, endpoint="https://web.push.apple.com/abc", tz="Asia/Kolkata"):
+        self.client.force_login(user)
+        return self.client.post("/todolist/notifications/subscribe/", data=json.dumps({
+            "subscription": {"endpoint": endpoint, "keys": {"p256dh": "BPk", "auth": "xyz"}},
+            "device": "iPhone · Home Screen app", "timezone": tz}), content_type="application/json")
+
+    def test_install_pieces(self):
+        sw = self.client.get("/todolist/sw.js")
+        self.assertEqual(sw["Content-Type"], "application/javascript; charset=utf-8")
+        self.assertEqual(sw["Service-Worker-Allowed"], "/todolist/")
+        self.assertIn("showNotification", sw.content.decode())
+        m = self.client.get("/todolist/manifest.webmanifest").json()
+        self.assertEqual((m["scope"], m["start_url"], m["display"]), ("/todolist/", "/todolist/", "standalone"))
+        self.login(self.alice)
+        page = self.client.get("/todolist/").content.decode()
+        self.assertIn('rel="manifest"', page)
+        self.assertIn("apple-touch-icon", page)
+
+    def test_page_shows_the_public_key_and_saves_choices(self):
+        from .models import NotificationSettings
+        self.login(self.alice)
+        page = self.client.get("/todolist/notifications/").content.decode()
+        self.assertIn('data-enabled="1"', page)
+        self.assertRegex(page, r'data-key="B[A-Za-z0-9_-]{80,}"')
+        self.client.post("/todolist/notifications/", {"due_reminders": "on", "lead_minutes": "60", "summary_time": "07:30"})
+        prefs = NotificationSettings.objects.get(user=self.alice)
+        self.assertEqual((prefs.lead_minutes, prefs.daily_summary, prefs.summary_time.hour), (60, False, 7))
+
+    def test_subscribe_validates_and_records_timezone(self):
+        from .models import NotificationSettings, PushSubscription
+        self.assertEqual(self.subscribe(self.alice).status_code, 200)
+        self.assertEqual(NotificationSettings.objects.get(user=self.alice).timezone, "Asia/Kolkata")
+        self.assertEqual(self.subscribe(self.alice, endpoint="http://insecure").status_code, 400)
+        self.assertEqual(PushSubscription.objects.count(), 1)
+        sub = PushSubscription.objects.get()
+        self.client.force_login(self.bob)                       # someone else can't remove it
+        self.client.post(f"/todolist/notifications/devices/{sub.id}/remove/")
+        self.assertTrue(PushSubscription.objects.exists())
+
+    def test_test_button_sends_to_my_devices(self):
+        self.subscribe(self.alice)
+        res = self.client.post("/todolist/notifications/test/")
+        self.assertEqual(res.json(), {"ok": True, "sent": 1})
+        self.assertEqual(self.sent[0][1]["title"], "Notifications are on 🎉")
+
+    def test_due_reminder_is_sent_once_before_the_due_time(self):
+        from . import push
+        self.subscribe(self.alice)                              # default: 15 minutes before
+        now = timezone.now()
+        self.item.due_date = now + datetime.timedelta(minutes=10); self.item.save()
+        make_item(self.alice, todo_item="Later", due_date=now + datetime.timedelta(hours=3))
+        make_item(self.alice, todo_item="Done already", status=True, due_date=now + datetime.timedelta(minutes=5))
+        make_item(self.bob, todo_item="Bob's", due_date=now + datetime.timedelta(minutes=5))
+        self.assertEqual(push.run_once(now), 1)
+        self.assertEqual(self.sent[0][1]["title"], "Water the plants")
+        self.assertTrue(self.sent[0][1]["body"].startswith("Due at "))
+        self.assertEqual(push.run_once(now + datetime.timedelta(minutes=1)), 0)   # not again
+
+    def test_morning_summary_once_per_day_in_local_time(self):
+        from zoneinfo import ZoneInfo
+        from . import push
+        from .models import NotificationSettings
+        self.subscribe(self.alice, tz="Asia/Kolkata")
+        NotificationSettings.objects.filter(user=self.alice).update(due_reminders=False)
+        kolkata = ZoneInfo("Asia/Kolkata")
+        morning = datetime.datetime(2026, 11, 27, 8, 5, tzinfo=kolkata)
+        make_item(self.alice, todo_item="Pay rent", due_date=datetime.datetime(2026, 11, 26, 9, 0, tzinfo=kolkata))
+        self.item.due_date = datetime.datetime(2026, 11, 27, 18, 0, tzinfo=kolkata); self.item.save()
+        self.assertEqual(push.run_once(morning - datetime.timedelta(minutes=10)), 0)   # 07:55: too early
+        self.assertEqual(push.run_once(morning), 1)
+        self.assertEqual(self.sent[0][1]["body"], "1 task today, 1 overdue: Pay rent, Water the plants")
+        self.assertEqual(push.run_once(morning + datetime.timedelta(minutes=5)), 0)    # once a day
+
+    def test_gone_devices_are_removed(self):
+        import pywebpush
+        from unittest import mock
+        from . import push
+        from .models import PushSubscription
+        self.subscribe(self.alice)
+        gone = pywebpush.WebPushException("gone", response=mock.Mock(status_code=410))
+        with mock.patch.object(pywebpush, "webpush", side_effect=gone):
+            self.assertEqual(push.send(self.alice, "x"), 0)
+        self.assertFalse(PushSubscription.objects.exists())
+
+    def test_without_a_key_the_page_says_so(self):
+        from django.test import override_settings
+        from . import push
+        with override_settings(VAPID_PRIVATE_KEY_FILE=""):
+            push._private_key.cache_clear()
+            self.login(self.alice)
+            self.assertContains(self.client.get("/todolist/notifications/"), "aren't set up on the server")
+            self.assertEqual(push.run_once(), 0)
+        push._private_key.cache_clear()
