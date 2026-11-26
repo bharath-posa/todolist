@@ -1,16 +1,1 @@
-{% load static %}
-
-<link rel='stylesheet' type="text/css" href="{% static 'todolist/style.css' %}">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<h2> Add New User </h2>
-
-<form action = "" method = "post">
-    {% csrf_token %}
-    {{form.as_p }}
-    <button type="submit" value=Save class="block"> Save </button>
-    
-    
-</form>
-
-<a href= "{% url 'todolist:index' %}" ><button type="submit"  class="home">Home</button> </a>
+{% extends "todolist/_auth_form.html" %}

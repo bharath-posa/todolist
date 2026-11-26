@@ -1,0 +1,26 @@
+{% extends "todolist/base.html" %}
+{% block title %}{{ title }} · Todo list{% endblock %}
+{% block content %}
+<div class="form-page auth-page">
+  <h1 class="page-title">Todo list</h1>
+  <form method="post" class="card card-body" novalidate>
+    {% csrf_token %}
+    <h2 class="h5 mb-3">{{ title }}</h2>
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+    {% for f in form %}
+      <div class="mb-3">
+        <label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}</label>
+        <input class="form-control{% if f.errors %} is-invalid{% endif %}" type="{{ f.field.widget.input_type }}"
+               name="{{ f.html_name }}" id="{{ f.id_for_label }}" value="{% if f.field.widget.input_type != 'password' %}{{ f.value|default_if_none:'' }}{% endif %}"
+               {% if f.field.widget.attrs.autocomplete %}autocomplete="{{ f.field.widget.attrs.autocomplete }}"{% endif %} required>
+        {% for e in f.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+        {% if f.help_text and not f.errors %}<div class="form-text">{{ f.help_text|safe }}</div>{% endif %}
+      </div>
+    {% endfor %}
+    <div class="actions">
+      <button type="submit" class="btn btn-success">{{ submit_label }}</button>
+    </div>
+    <p class="text-center mb-0">{{ switch_text }} <a href="{{ switch_url }}">{{ switch_link }}</a></p>
+  </form>
+</div>
+{% endblock %}

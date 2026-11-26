@@ -1,9 +1,10 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, HttpResponseRedirect
-from .models import Item, DeleteItem, CustomUser,RecurringItemStatus, dateStatusCheck
+from .models import Item, DeleteItem, CustomUser, RecurringItemStatus, PRIORITY_CHOICES, split_tags
 from django import forms
 from .forms import ItemForm, ItemUpdateForm, CustomUserForm
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.http import QueryDict, JsonResponse
 from django.forms.models import model_to_dict
 from django.contrib.auth.forms import UserCreationForm , AuthenticationForm
@@ -11,21 +12,36 @@ from django.contrib.auth import authenticate , login as loginUser , logout
 import json
 from django.contrib.auth.decorators import login_required
 import datetime
+from django.db.models import Q
+from django.utils import timezone
 #from django.db.models import Item
 # Create your views here.
 
 @login_required
 def index(request):
-    if request.user.is_authenticated:
-        user = request.user
-        recurring_items = Item.objects.filter(recurring_task='1',user=user).order_by('status') 
-        completed_items = Item.objects.filter(status='1',user=user).order_by('pomodoro_estimate')   
-        list_of_items = Item.objects.filter(recurring_task='0',user=user,status='0').order_by('-create_date')
-        context = {'recurring_items': recurring_items, 'list_of_items': list_of_items, 'completed_items': completed_items, 'logged_user':user.username,}
-        checkAndUpdateRecurringTask()
-        return render(request, 'todolist/index.html', context)
-    else:
-        return redirect("/todolist/")
+    user = request.user
+    today = timezone.localdate()
+    reset_recurring_items(user, today)
+    items = Item.objects.filter(user=user)
+    recurring_items = items.filter(recurring_task=True).order_by('status', '-itemPriority')
+    completed_items = items.filter(status=True).order_by('-due_date')
+    list_of_items = items.filter(recurring_task=False, status=False).order_by('due_date')
+    # Today: unfinished tasks due today or overdue, plus repeating tasks not yet done this period.
+    end_of_today = timezone.make_aware(datetime.datetime.combine(today, datetime.time.max))
+    today_items = (items.filter(status=False)
+                   .filter(Q(recurring_task=True) | Q(due_date__lte=end_of_today))
+                   .order_by('-itemPriority', 'due_date'))
+    by_lower = {}
+    for tags in items.values_list('tags', flat=True):
+        for t in split_tags(tags):
+            by_lower.setdefault(t.lower(), t)   # one entry per tag, ignoring case
+    all_tags = [by_lower[k] for k in sorted(by_lower)]
+    context = {
+        'today_items': today_items, 'recurring_items': recurring_items, 'list_of_items': list_of_items,
+        'completed_items': completed_items, 'logged_user': user.username, 'all_tags': all_tags,
+        'priority_choices': PRIORITY_CHOICES, 'now': timezone.now(),
+    }
+    return render(request, 'todolist/index.html', context)
 
 
 def detail(request, item_id):
@@ -39,89 +55,41 @@ def thanks(request):
 
 @login_required
 def additem(request):
+    if request.method == 'POST':
+        form = ItemForm(request.POST)
+        if form.is_valid():
+            item = form.save(commit=False)
+            item.user = request.user
+            item.create_date = timezone.now()
+            item.start_date = item.start_date or item.create_date
+            item.status = False
+            if item.recurrence != "none":
+                item.last_reset = timezone.localdate()
+            item.save()
+            return redirect('todolist:index')
+    else:
+        now = timezone.localtime().replace(second=0, microsecond=0)
+        form = ItemForm(initial={'start_date': now, 'due_date': now + datetime.timedelta(days=1)})
+    return render(request, 'todolist/additem.html', {'form': form, 'title': 'New task', 'submit_label': 'Add task'})
 
-    if request.user.is_authenticated:
-        user = request.user
-
-
-        # if this is a POST request we need to process the form data
-        if request.method == 'POST':
-            # create a form instance and populate it with data from the request:
-            form = ItemForm(request.POST)
-            # check whether it's valid:
-            if form.is_valid():
-                # process the data in form.cleaned_data as required
-                # 
-                # redirect to a new URL:
-                #return HttpResponseRedirect('todolist/thanks/')
-                #print(form.cleaned_data['todo_item'])
-                user = user
-                todo_item = form.cleaned_data['todo_item']
-                start_date = form.cleaned_data['start_date']   
-                create_date = datetime.date.today()        
-                due_date = form.cleaned_data['due_date']            
-                status = False
-                pomodoro_estimate = form.cleaned_data['pomodoro_estimate']
-                pomodoro_completed = form.cleaned_data['pomodoro_completed']
-                recurring_task = form.cleaned_data['recurring_task']
-                autoCompletePomodoro = form.cleaned_data['autoCompletePomodoro']
-                if recurring_task == None:
-                    recurring_task = False
-                itemPriority = form.cleaned_data['itemPriority']
-                item = Item(todo_item=todo_item, 
-                            create_date=create_date, 
-                            start_date=start_date,
-                            due_date=due_date, 
-                            status=status,
-                            recurring_task=recurring_task,
-                            pomodoro_estimate=pomodoro_estimate,
-                            pomodoro_completed=pomodoro_completed,
-                            autoCompletePomodoro=autoCompletePomodoro,
-                            user=user,
-                            itemPriority=itemPriority)
-                item.save()
-                return redirect('todolist:index')
-
-        # if a GET (or any other method) we'll create a blank form
-        else:
-            form = ItemForm()
-
-        return render(request, 'todolist/additem.html', {'form': form})
 
 @login_required
-def edit_item(request,id):
-    if request.user.is_authenticated:
-        user = request.user
-        if request.method == "POST":
-            recurringStatus = status = False # 040 6810 2816 2845 2840          
-            if request.POST.get('recurring_task') == 'on':
-                recurringStatus = True
-            if request.POST.get('status') == 'on':
-                status = True
-            if request.POST.get('autoCompletePomodoro') == 'on':
-                autoCompletePomodoroValue = True
-            else:
-                autoCompletePomodoroValue = False
-            get_object_or_404(Item, pk=id, user=request.user)
-            Item.objects.filter(pk=id, user=request.user).update(
-                todo_item=request.POST.get('todo_item'), 
-                start_date=request.POST.get('start_date'), 
-                due_date=request.POST.get('due_date'), 
-                status=status,
-                recurring_task=recurringStatus,
-                pomodoro_estimate=request.POST.get('pomodoro_estimate'),
-                pomodoro_completed=request.POST.get('pomodoro_completed'),
-                itemPriority=request.POST.get('itemPriority'),
-                autoCompletePomodoro=autoCompletePomodoroValue,  
-                )
+def edit_item(request, id):
+    item = get_object_or_404(Item, id=id, user=request.user)
+    if request.method == "POST":
+        was_recurring = item.recurrence
+        form = ItemUpdateForm(request.POST, instance=item)
+        if form.is_valid():
+            item = form.save(commit=False)
+            if item.recurrence != "none" and (was_recurring == "none" or item.last_reset is None):
+                item.last_reset = timezone.localdate()
+            item.save()
             return redirect('todolist:index')
-            
-            
-        if id:
-            edit_item = get_object_or_404(Item, id=id, user=request.user)
-            form = ItemUpdateForm(instance=edit_item)
-            return render(request,'todolist/editItem.html',{'form':form})
-        
+    else:
+        form = ItemUpdateForm(instance=item)
+    return render(request, 'todolist/editItem.html', {'form': form, 'title': 'Edit task', 'submit_label': 'Save changes', 'item': item})
+
+
 @login_required
 def update_item_status(request):
     if request.user.is_authenticated:
@@ -140,26 +108,6 @@ def update_item_status(request):
             Item.objects.filter(pk=item_id, user=request.user).update(status=updated_status)
             
         return JsonResponse({"ok": True})
-
-@login_required
-def reload_with_filter(request,id):
-    if request.user.is_authenticated:
-        user = request.user
-        if request.method == 'GET':
-            #filter_value = (QueryDict(request.body)['filter_value'])
-            filter_value = id
-            if filter_value:
-                recurring_items = Item.objects.filter(recurring_task='1',user=user,itemPriority=filter_value).order_by('status') 
-                completed_items = Item.objects.filter(status='1',user=user,itemPriority=filter_value).order_by('pomodoro_estimate')   
-                list_of_items = Item.objects.filter(recurring_task='0',user=user,status='0', itemPriority=filter_value).order_by('-create_date')
-                context = {'recurring_items': recurring_items, 'list_of_items': list_of_items, 'completed_items': completed_items, 'logged_user':user.username,}
-                checkAndUpdateRecurringTask()
-                return render(request, 'todolist/index.html', context)
-                
-            else:
-                return redirect("/todolist/")
-
-
 
 @login_required
 def deleteItem(request,id):
@@ -227,64 +175,27 @@ def updatePomodoroCount(request):
             
 
 def addUser(request):
-    if request.method == 'GET':
-        form = UserCreationForm()
-        context = {
-            "form" : form
-        }
-        return render(request , 'todolist/addUser.html' , context=context)
-    else:
-        form = UserCreationForm(request.POST)  
-        context = {
-            "form" : form
-        }
-        if form.is_valid():
-            user = form.save()
-            if user is not None:
-                return redirect('todolist:login')
-        else:
-            return render(request , 'todolist/addUser.html' , context=context)
-
-
-    '''
-    if request.method == "POST":
-
-        customUser = CustomUser(
-            username = request.POST.get('username'),
-            password = request.POST.get('password'),
-            email = request.POST.get('email'),
-            profile_name = request.POST.get('profile_name')
-        )
-
-        customUser.save()
-        return redirect('/todolist/')
-    else:
-        form = CustomUserForm()
-
-        return render(request, 'todolist/adduser.html', {'form': form})
-    '''
+    form = UserCreationForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('todolist:login')
+    return render(request, 'todolist/addUser.html', {
+        'form': form, 'title': 'Create an account', 'submit_label': 'Create account',
+        'switch_text': 'Already have an account?', 'switch_link': 'Sign in', 'switch_url': reverse('todolist:login')})
 
 
 def login(request):
+    form = AuthenticationForm(request, data=request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        loginUser(request, form.get_user())
+        next_url = request.GET.get('next', '')
+        if next_url.startswith('/todolist/') and not next_url.startswith('//'):
+            return redirect(next_url)
+        return redirect('todolist:index')
+    return render(request, 'todolist/login.html', {
+        'form': form, 'title': 'Sign in', 'submit_label': 'Sign in',
+        'switch_text': 'New here?', 'switch_link': 'Create an account', 'switch_url': reverse('todolist:addUser')})
 
-    if request.method == 'GET':
-        form1 = AuthenticationForm()
-        context = {
-            "form" : form1
-        }
-        return render(request , 'todolist/login.html' , context=context )
-    else:
-        form = AuthenticationForm(data=request.POST)
-        if form.is_valid():
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password')
-            user = authenticate(username = username , password = password)
-            if user is not None:
-                loginUser(request , user)
-                return redirect('/todolist/')
-        else:
-
-            return redirect('todolist:login')
 
 @login_required
 def signout(request):
@@ -292,20 +203,11 @@ def signout(request):
     return redirect('todolist:login')
 
 
-def checkAndUpdateRecurringTask():
-    # get todays date
-    today  = datetime.datetime.today().strftime('%Y-%m-%d')
-    # Compare it with date in django Sqlite table
-    last_date, _ = dateStatusCheck.objects.get_or_create(id=1, defaults={"today_date": datetime.date.today()})
-    # if they mismatch update all the pomodoro completed
-    # to zero for recurring tasks and update the value of 
-    # table to todays date
-    if today != str(last_date):
-        # Get all rows which are recurring 
-        # update them with "o" for pomodoro completed & 
-        # set Status back to not completed
-        Item.objects.filter(recurring_task='1').update(pomodoro_completed=0,status=False)
-        dateStatusCheck.objects.filter(id="1").update(today_date=today)
+def reset_recurring_items(user, today):
+    """Start this user's repeating tasks over when their day/week/month/year has rolled over."""
+    for item in Item.objects.filter(user=user).exclude(recurrence="none"):
+        item.reset_if_new_period(today)
+
 
 '''
 def mappingTelegrambotUser():
