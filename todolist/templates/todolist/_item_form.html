@@ -8,31 +8,27 @@
     {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors|join:" " }}</div>{% endif %}
 
     {% with f=form.todo_item %}{% include "todolist/_field.html" %}{% endwith %}
-    {% with f=form.project %}{% include "todolist/_field.html" %}{% endwith %}
 
-    <div class="row g-3">
-      <div class="col-sm-6">{% with f=form.start_date %}{% include "todolist/_field.html" %}{% endwith %}</div>
-      <div class="col-sm-6">{% with f=form.due_date %}{% include "todolist/_field.html" %}{% endwith %}</div>
+    {# Due, with one-tap dates (#15). The buttons change the day and keep the time. #}
+    <div class="mb-3">
+      <label class="form-label" for="{{ form.due_date.id_for_label }}">{{ form.due_date.label }}</label>
+      <div class="quick-dates" role="group" aria-label="Set the due date">
+        <button type="button" class="chip" data-due-offset="0">Today</button>
+        <button type="button" class="chip" data-due-offset="1">Tomorrow</button>
+        <button type="button" class="chip" data-due-offset="7">Next week</button>
+      </div>
+      {{ form.due_date }}
+      {% for e in form.due_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
 
     <div class="row g-3">
       <div class="col-sm-6">{% with f=form.itemPriority %}{% include "todolist/_field.html" %}{% endwith %}</div>
-      <div class="col-sm-6">{% with f=form.recurrence %}{% include "todolist/_field.html" %}{% endwith %}</div>
+      <div class="col-sm-6">{% with f=form.project %}{% include "todolist/_field.html" %}{% endwith %}</div>
     </div>
-
-    {% with f=form.tags %}{% include "todolist/_field.html" %}{% endwith %}
-
-    <fieldset class="pomodoro-fields">
-      <legend>Pomodoros</legend>
-      <div class="row g-3">
-        <div class="col-6">{% with f=form.pomodoro_estimate %}{% include "todolist/_field.html" %}{% endwith %}</div>
-        <div class="col-6">{% with f=form.pomodoro_completed %}{% include "todolist/_field.html" %}{% endwith %}</div>
-      </div>
-      <div class="form-check">
-        {{ form.autoCompletePomodoro }}
-        <label class="form-check-label" for="{{ form.autoCompletePomodoro.id_for_label }}">{{ form.autoCompletePomodoro.label }}</label>
-      </div>
-    </fieldset>
+    <div class="row g-3">
+      <div class="col-sm-6">{% with f=form.recurrence %}{% include "todolist/_field.html" %}{% endwith %}</div>
+      <div class="col-sm-6">{% with f=form.tags %}{% include "todolist/_field.html" %}{% endwith %}</div>
+    </div>
 
     {% if form.status %}
     <div class="form-check mb-3">
@@ -40,6 +36,23 @@
       <label class="form-check-label" for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
     </div>
     {% endif %}
+
+    {# Less-used fields fold away; they open by themselves when one of them has an error. #}
+    <details class="more-fields"{% if form.start_date.errors or form.pomodoro_estimate.errors or form.pomodoro_completed.errors %} open{% endif %}>
+      <summary>More options <span class="hint">start time, pomodoros</span></summary>
+      {% with f=form.start_date %}{% include "todolist/_field.html" %}{% endwith %}
+      <fieldset class="pomodoro-fields">
+        <legend>Pomodoros</legend>
+        <div class="row g-3">
+          <div class="col-6">{% with f=form.pomodoro_estimate %}{% include "todolist/_field.html" %}{% endwith %}</div>
+          <div class="col-6">{% with f=form.pomodoro_completed %}{% include "todolist/_field.html" %}{% endwith %}</div>
+        </div>
+        <div class="form-check">
+          {{ form.autoCompletePomodoro }}
+          <label class="form-check-label" for="{{ form.autoCompletePomodoro.id_for_label }}">{{ form.autoCompletePomodoro.label }}</label>
+        </div>
+      </fieldset>
+    </details>
 
     <div class="actions">
       <button type="submit" class="btn btn-success">{{ submit_label }}</button>

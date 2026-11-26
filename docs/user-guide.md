@@ -20,8 +20,14 @@ to the box) opens the full form, keeping what you typed:
 | Pomodoros planned / done | How many 25-minute focus sessions you expect, and how many you've done |
 | Mark done when all planned pomodoros are finished | Finishes the task automatically after the last planned pomodoro |
 
-Each task shows on one line with its checkbox, priority (P1–P4), project, repeat and tags. Click the line
-to open it for dates, pomodoros and **Timer**, **Edit** and **Delete**. Tick the checkbox to mark a task done.
+Each task shows its title and one grey line with its project (with the project's colour dot), when it's
+due or how often it repeats, and its tags. The colour of the round checkbox is the priority: grey (1),
+blue (2), orange (3), red (4). Overdue tasks say so in red. Tap the line to open the task for dates,
+pomodoros and **Timer**, **Edit** and **Delete**. Tick the circle to mark a task done; **Undo** in the message
+at the bottom takes it back.
+
+On the task form, **Today**, **Tomorrow** and **Next week** set the due day and keep the time. The start time
+and pomodoro settings are under **More options**.
 
 ### Tabs
 - **Today** (default): unfinished tasks due today or overdue, plus repeating tasks you haven't done yet
@@ -46,8 +52,9 @@ calendar week (Monday), the next month or the next year. This happens the next t
 **⏲️ Timer** on a task opens a 25-minute focus timer. Each completed pomodoro is counted on the task.
 
 ## Projects
-**Projects** in the top bar lists your projects with a progress bar (finished / all tasks). From there you
-can add a task straight into a project, edit it, archive it (hides it from the task form) or delete it.
+**Projects** lists your projects with a colour dot and a progress bar (finished / all tasks). Tap a project
+to see its tasks. The **⋯** menu on each project adds a task to it, edits it (including archiving, which
+hides it from the task form) or deletes it.
 Deleting a project keeps its tasks; they just have no project afterwards.
 
 ## Metrics

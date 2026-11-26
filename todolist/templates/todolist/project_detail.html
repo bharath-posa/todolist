@@ -2,7 +2,7 @@
 {% block title %}{{ project.name }} · Todo list{% endblock %}
 {% block content %}
 <p class="crumbs"><a href="{% url 'todolist:projects' %}">← Projects</a></p>
-<h1 class="page-title">📁 {{ project.name }}</h1>
+<h1 class="page-title"><span class="dot dot-lg" style="background:{{ project.color }}" aria-hidden="true"></span>{{ project.name }}</h1>
 {% if project.description %}<p class="signed-in">{{ project.description }}</p>{% endif %}
 {% if project.archived %}<p class="text-center"><span class="badge bg-secondary">Archived</span></p>{% endif %}
 

@@ -29,19 +29,9 @@ body {
     box-shadow: 0px 0px 15px 0px rgba(0,0,0,0.75);
 }
 
-.row {
-    background-color: #e3e3e3;
-    border-radius: 15px;
-}
 
 
-.row:nth-child(even) {
-    background: rgb(234, 236, 236)
-}
 
-.row:nth-child(odd) {
-    background: rgb(255, 254, 254)
-}
 
 .delete{
     padding: 0;
@@ -96,9 +86,9 @@ button.home {
 .tablink .count { display: inline-block; min-width: 1.4rem; padding: 0 .35rem; border-radius: 999px; background: #e9ecef; font-size: .8rem; }
 .hint { color: #6c757d; font-size: .9rem; }
 .task-list .empty { color: #6c757d; text-align: center; }
-.task details > summary { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; cursor: pointer; }
+.task details > summary { list-style: none; display: flex; align-items: flex-start; gap: .35rem; cursor: pointer; }
 .task details > summary::-webkit-details-marker { display: none; }
-.task details > summary::after { content: "▸"; margin-left: auto; color: #adb5bd; transition: transform .15s; }
+.task details > summary::after { content: "▸"; margin-left: auto; padding-top: .6rem; color: #adb5bd; transition: transform .15s; }
 .task details[open] > summary::after { transform: rotate(90deg); }
 .task-check { margin: 0; flex: none; width: 1.25rem; height: 1.25rem; }
 .task-title { font-size: 1.05rem; overflow-wrap: anywhere; }
@@ -216,3 +206,70 @@ a.badge.project { text-decoration: none; }
 .group-title { text-align: left; }
 @media (max-width: 400px) { .tabs { gap: 0; } .tablink { padding: .55rem .35rem; font-size: .9rem; } .tablink .count { min-width: 1.15rem; padding: 0 .3rem; font-size: .75rem; } }
 li.task { scroll-margin: 88px 0 160px; }   /* keep a highlighted task clear of the bars */
+
+/* ---------- UI Tier 2: calmer rows, tap targets, form, projects (#13-#16) ---------- */
+.list-group-item.task { padding: .35rem .75rem .35rem .25rem; }
+/* 44px hit area around the checkbox (#14) */
+.check-hit { flex: none; display: grid; place-items: center; width: 44px; height: 44px; cursor: pointer; }
+.task-check { width: 1.35rem; height: 1.35rem; margin: 0; border-width: 2px; border-radius: 50% !important; cursor: pointer; }
+/* Priority is the ring colour (#13) */
+.task-check.prio-1 { border-color: #adb5bd; } .task-check.prio-2 { border-color: #1c7ed6; }
+.task-check.prio-3 { border-color: #f08c00; } .task-check.prio-4 { border-color: #e03131; }
+.task-check.prio-1:checked { background-color: #adb5bd; } .task-check.prio-2:checked { background-color: #1c7ed6; }
+.task-check.prio-3:checked { background-color: #f08c00; } .task-check.prio-4:checked { background-color: #e03131; }
+.task-check:focus { box-shadow: 0 0 0 .2rem rgba(25,135,84,.3); }
+.task-body { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: .55rem 0 .45rem; }
+.task-title { line-height: 1.35; }
+.task-meta { display: flex; flex-wrap: wrap; gap: .1rem .6rem; font-size: .8rem; color: #6c757d; margin-top: .15rem; }
+.task-meta:empty { display: none; }
+.meta-project { display: inline-flex; align-items: center; gap: .3rem; }
+.meta-overdue { color: #c92a2a; font-weight: 600; }
+.meta-tag { color: #868e96; }
+.dot { display: inline-block; flex: none; width: .6rem; height: .6rem; border-radius: 50%; }
+.dot-lg { width: .8rem; height: .8rem; margin-right: .45rem; vertical-align: middle; }
+.prio-dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .4rem; color: transparent; }
+.task-details, .task-actions { margin-left: 44px; }
+.task-actions .btn { min-height: 44px; display: inline-flex; align-items: center; }
+@media (min-width: 768px) { .task-actions .btn { min-height: 0; } }
+
+/* Undo toast (#14) */
+.toast-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 1060;
+             display: flex; align-items: center; gap: 1rem; max-width: calc(100vw - 32px); padding: .55rem .6rem .55rem 1rem;
+             background: #212529; color: #fff; border-radius: .6rem; box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.3); font-size: .95rem; }
+.toast-bar[hidden] { display: none; }
+.toast-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast-bar button { flex: none; min-height: 40px; padding: 0 .75rem; border: 0; border-radius: .4rem; background: transparent; color: #8ce99a; font-weight: 700; }
+.toast-bar button:hover, .toast-bar button:focus-visible { background: rgba(255,255,255,.12); }
+@media (max-width: 767.98px) { .toast-bar { left: 16px; right: 88px; transform: none; max-width: none; justify-content: space-between; bottom: calc(56px + 20px + env(safe-area-inset-bottom)); }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } } }
+@media (prefers-reduced-motion: no-preference) { .toast-bar.show { animation: toast-in .18s ease-out; } }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+
+/* Task form (#15) */
+.quick-dates { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
+.quick-dates .chip { min-height: 36px; }
+.quick-dates .chip[aria-pressed="true"] { background: #198754; border-color: #198754; color: #fff; }
+.more-fields { border-top: 1px solid #dee2e6; margin: .25rem 0 1rem; padding-top: .5rem; }
+.more-fields > summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; gap: .5rem; }
+.more-fields > summary .hint { font-weight: 400; }
+.more-fields[open] > summary { margin-bottom: .5rem; }
+
+/* Projects (#16): the whole card opens the project; actions live in a ⋯ menu. */
+.project-row { position: relative; }
+.project-row:hover { background: #f8f9fa; }
+.project-head { align-items: center; }
+.project-name.stretched { color: #212529; }
+.project-name.stretched::after { content: ""; position: absolute; inset: 0; }
+.row-menu { position: relative; z-index: 2; }
+.row-menu > summary { list-style: none; display: grid; place-items: center; width: 44px; height: 44px; margin: -10px -10px -10px 0;
+                      border-radius: .4rem; font-size: 1.3rem; line-height: 1; color: #495057; cursor: pointer; }
+.row-menu > summary::-webkit-details-marker { display: none; }
+.row-menu > summary:hover { background: #e9ecef; }
+.row-menu-list { position: absolute; right: 0; top: 100%; min-width: 11rem; background: #fff; border: 1px solid #dee2e6; border-radius: .6rem;
+                 box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.15); padding: .35rem; z-index: 5; }
+.row-menu-list a, .row-menu-list button { display: block; width: 100%; text-align: left; padding: .6rem .75rem; border: 0; background: none;
+                                          border-radius: .4rem; color: #212529; text-decoration: none; }
+.row-menu-list a:hover, .row-menu-list button:hover { background: #f1f3f5; }
+.row-menu-list .danger { color: #c92a2a; }
+.project-row .progress { position: relative; z-index: 1; pointer-events: none; }
+.task-check:not(:checked) { background-color: #fff; }   /* the old .prio-N badge fill must not paint the ring */

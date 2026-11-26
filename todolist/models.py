@@ -140,6 +140,10 @@ class telegrambotUserMapping(models.Model):
     event_time = models.DateTimeField('Event Timestamp')
 
 
+# Colour dots for projects (#16): picked from the id so they stay stable without a database field.
+PROJECT_COLORS = ["#2f9e44", "#1c7ed6", "#e8590c", "#ae3ec9", "#0c8599", "#d6336c", "#f08c00", "#5c7cfa"]
+
+
 class Project(models.Model):
     """A group of tasks (#57)."""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='projects')
@@ -154,6 +158,10 @@ class Project(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def color(self):
+        return PROJECT_COLORS[(self.pk or 0) % len(PROJECT_COLORS)]
 
 
 class Activity(models.Model):
