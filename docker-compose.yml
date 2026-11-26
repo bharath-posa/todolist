@@ -1,10 +1,14 @@
-version: '3.4'
-
+# Local run: http://localhost:8000/todolist/
 services:
   todolist:
+    build: .
     image: todolist
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-local-dev-only-change-me}
+      DJANGO_EXTRA_CSRF_ORIGINS: http://localhost:8000
     ports:
-      - 8000:8000
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - todolist-data:/data
+volumes:
+  todolist-data: {}

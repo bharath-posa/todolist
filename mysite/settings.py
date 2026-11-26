@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -19,13 +20,42 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'lklo2_$o@59!v%vpe99if-0_g$mi8ib=c@64y86ewa0pi%4enm'
+# Configuration comes from the environment; the defaults are for local development only.
+#   DJANGO_SECRET_KEY / DJANGO_SECRET_KEY_FILE  secret key (required when DEBUG is off)
+#   DJANGO_DEBUG                                "true" for development (default "false")
+#   DJANGO_PUBLIC_ORIGIN                        e.g. https://example.com (sets hosts, CSRF, secure cookies)
+#   DJANGO_DB_PATH                              SQLite file (default: db.sqlite3 next to manage.py)
+DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+def _secret_key():
+    if path := os.environ.get("DJANGO_SECRET_KEY_FILE"):
+        return Path(path).read_text().strip()
+    if key := os.environ.get("DJANGO_SECRET_KEY"):
+        return key
+    if DEBUG:
+        return "dev-only-insecure-key"
+    raise RuntimeError("Set DJANGO_SECRET_KEY or DJANGO_SECRET_KEY_FILE (or DJANGO_DEBUG=true for development).")
+
+
+SECRET_KEY = _secret_key()
+
+PUBLIC_ORIGIN = os.environ.get("DJANGO_PUBLIC_ORIGIN", "")
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]", "todolist", "testserver"]
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("DJANGO_EXTRA_CSRF_ORIGINS", "").split(",") if o.strip()]
+if PUBLIC_ORIGIN:
+    ALLOWED_HOSTS.append(PUBLIC_ORIGIN.split("://", 1)[1].split("/", 1)[0])
+    CSRF_TRUSTED_ORIGINS.append(PUBLIC_ORIGIN)
+
+# Behind a TLS-terminating proxy that sets X-Forwarded-Proto.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = PUBLIC_ORIGIN.startswith("https://")
+SESSION_COOKIE_HTTPONLY = True
+# The app lives under /todolist/; keep its cookies there.
+SESSION_COOKIE_PATH = CSRF_COOKIE_PATH = "/todolist/"
+SESSION_COOKIE_NAME = "todolist_session"
+CSRF_COOKIE_NAME = "todolist_csrftoken"
+LOGIN_URL = "/todolist/login/"
 
 
 # Application definition
@@ -43,6 +73,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -78,7 +109,7 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.environ.get('DJANGO_DB_PATH', BASE_DIR / 'db.sqlite3'),
     }
 }
 
@@ -111,12 +142,20 @@ TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
-USE_L10N = True
-
 USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
-STATIC_URL = '/static/'
+STATIC_URL = '/todolist/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "root": {"handlers": ["console"], "level": "WARNING"},
+}

@@ -22,7 +22,7 @@ class ItemForm(forms.Form):
 class ItemUpdateForm(forms.ModelForm):
     class Meta:
         model = Item
-        fields = "__all__"
+        exclude = ["user"]
    
 
 class CustomUserForm(forms.ModelForm):
