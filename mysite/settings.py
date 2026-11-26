@@ -106,12 +106,30 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.environ.get('DJANGO_DB_PATH', BASE_DIR / 'db.sqlite3'),
+# PostgreSQL when DJANGO_DB_HOST is set (production); SQLite otherwise (development, tests).
+#   DJANGO_DB_HOST, DJANGO_DB_PORT (5432), DJANGO_DB_NAME (todolist), DJANGO_DB_USER (todolist),
+#   DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE
+if os.environ.get("DJANGO_DB_HOST"):
+    _pw_file = os.environ.get("DJANGO_DB_PASSWORD_FILE")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'HOST': os.environ["DJANGO_DB_HOST"],
+            'PORT': os.environ.get("DJANGO_DB_PORT", "5432"),
+            'NAME': os.environ.get("DJANGO_DB_NAME", "todolist"),
+            'USER': os.environ.get("DJANGO_DB_USER", "todolist"),
+            'PASSWORD': Path(_pw_file).read_text().strip() if _pw_file else os.environ.get("DJANGO_DB_PASSWORD", ""),
+            'CONN_MAX_AGE': 60,
+            'CONN_HEALTH_CHECKS': True,
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.environ.get('DJANGO_DB_PATH', BASE_DIR / 'db.sqlite3'),
+        }
+    }
 
 
 # Password validation
