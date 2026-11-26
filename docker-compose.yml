@@ -1,14 +1,28 @@
-# Local run: http://localhost:8000/todolist/
+# Local run with PostgreSQL: http://localhost:8000/todolist/
 services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: todolist
+      POSTGRES_USER: todolist
+      POSTGRES_PASSWORD: local-dev-only
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todolist -d todolist"]
+      interval: 5s
+      retries: 10
   todolist:
     build: .
     image: todolist
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-local-dev-only-change-me}
       DJANGO_EXTRA_CSRF_ORIGINS: http://localhost:8000
+      DJANGO_DB_HOST: db
+      DJANGO_DB_PASSWORD: local-dev-only
     ports:
       - "127.0.0.1:8000:8000"
-    volumes:
-      - todolist-data:/data
+    depends_on:
+      db: { condition: service_healthy }
 volumes:
-  todolist-data: {}
+  db-data: {}
