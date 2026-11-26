@@ -16,6 +16,7 @@ urlpatterns=[
     path('pomodorotimer/ajax/updatepomodoro', views.updatePomodoroCount, name="updatePomodoroCount"),
     path('projects/', views_extra.projects, name='projects'),
     path('projects/new/', views_extra.project_edit, name='project_new'),
+    path('projects/<int:id>/', views_extra.project_detail, name='project'),
     path('projects/<int:id>/edit/', views_extra.project_edit, name='project_edit'),
     path('projects/<int:id>/delete/', views_extra.project_delete, name='project_delete'),
     path('metrics/', views_extra.metrics, name='metrics'),

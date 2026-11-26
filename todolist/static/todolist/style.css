@@ -73,33 +73,8 @@ button.home {
     text-align: center;
   }
 
-/* Style the tab */
-
-/* Style the tab content (and add height:100% for full page content) */
-/* Style tab links */
-.tablink {
-    background-color: #555;
-    color: white;
-    float: center;
-    border: none;
-    outline: none;
-    cursor: pointer;
-    padding: 14px 16px;
-    font-size: 17px;
-    width: 25%;
-}
-
-    .tablink:hover {
-        background-color: #777;
-    }
-
-/* Style the tab content (and add height:100% for full page content) */
-.tabcontent {
-    color: white;
-    display: none;
-    padding: 100px 20px;
-    height: 100%;
-}
+/* Tabs: see the layout refresh section below. A tab panel is shown unless it has the hidden attribute. */
+.tabcontent[hidden] { display: none !important; }
 
 .heading-1 {
     font-size: 350% !important;
@@ -170,3 +145,13 @@ button.home {
 .badges li span { font-size: .8rem; }
 .badges li.earned { border: 1px solid #198754; background: #e8f5ee; color: #14532d; }
 .badges li.earned strong::before { content: "🏅 "; }
+
+/* ---------- Saved-task highlight and project page ---------- */
+.saved-banner { text-align: center; }
+li.task.just-saved { outline: 3px solid #198754; outline-offset: -3px; background: #e8f5ee; }
+@media (prefers-reduced-motion: no-preference) { li.task.just-saved { animation: saved-pulse 1.2s ease-out 2; } }
+@keyframes saved-pulse { 50% { background: #c7ecd6; } }
+.crumbs { margin: 0 0 .25rem; }
+.crumbs a, .project-name { text-decoration: none; }
+a.badge.project { text-decoration: none; }
+.project-summary { display: grid; gap: .35rem; max-width: 28rem; margin: .5rem auto 0; text-align: center; color: #495057; }
