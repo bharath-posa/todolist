@@ -106,3 +106,35 @@ button.home {
     line-height: 120% !important;
     color: black;
 }
+/* ---------- Layout refresh (issues #32 #33 #52) ---------- */
+.app { max-width: 52rem; }
+.page-title { font-family: inherit; font-weight: 700; text-align: center; margin-bottom: .25rem; }
+.signed-in { text-align: center; color: #6c757d; margin-bottom: .75rem; }
+/* Centred buttons that size to their text instead of spanning the page (#32) */
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin: .75rem 0 1rem; }
+.actions .btn { min-width: 9rem; }
+.filters { margin-bottom: 1rem; }
+.tabs { display: flex; flex-wrap: wrap; gap: .25rem; border-bottom: 2px solid #dee2e6; margin-bottom: .75rem; }
+.tablink { border: 0; background: none; padding: .55rem .9rem; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #495057; font-weight: 500; }
+.tablink.active { border-bottom-color: #198754; color: #198754; }
+.tablink .count { display: inline-block; min-width: 1.4rem; padding: 0 .35rem; border-radius: 999px; background: #e9ecef; font-size: .8rem; }
+.hint { color: #6c757d; font-size: .9rem; }
+.task-list .empty { color: #6c757d; text-align: center; }
+.task details > summary { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; cursor: pointer; }
+.task details > summary::-webkit-details-marker { display: none; }
+.task details > summary::after { content: "▸"; margin-left: auto; color: #adb5bd; transition: transform .15s; }
+.task details[open] > summary::after { transform: rotate(90deg); }
+.task-check { margin: 0; flex: none; width: 1.25rem; height: 1.25rem; }
+.task-title { font-size: 1.05rem; overflow-wrap: anywhere; }
+.task.done .task-title { text-decoration: line-through; color: #6c757d; }
+.badge.tag { background: #e7f1ff; color: #0b5ed7; font-weight: 500; }
+.prio { color: #fff; }
+.prio-1 { background: #6c757d; } .prio-2 { background: #0d6efd; } .prio-3 { background: #fd7e14; } .prio-4 { background: #dc3545; }
+.task-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .25rem 1rem; margin: .75rem 0 .5rem; }
+.task-details dt { font-size: .8rem; color: #6c757d; font-weight: 500; }
+.task-details dd { margin: 0; }
+.task-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.form-page { max-width: 40rem; margin: 0 auto; }
+.task-form .pomodoro-fields { border: 1px solid #dee2e6; border-radius: .5rem; padding: .75rem 1rem; margin-bottom: 1rem; }
+.task-form legend { font-size: 1rem; font-weight: 600; float: none; width: auto; padding: 0 .3rem; margin-bottom: 0; }
+@media (prefers-reduced-motion: reduce) { .task details > summary::after { transition: none; } }

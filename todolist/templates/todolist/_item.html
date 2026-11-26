@@ -1,0 +1,27 @@
+{# One task, collapsible (#52). data-* attributes drive the priority/tag/search filters. #}
+<li class="list-group-item task{% if item.status %} done{% endif %}" data-priority="{{ item.itemPriority }}"
+    data-tags="{{ item.tags|lower }}" data-text="{{ item.todo_item|lower }}">
+  <details>
+    <summary>
+      <input class="form-check-input task-check" type="checkbox" aria-label="Mark “{{ item.todo_item }}” done"
+             onclick="event.stopPropagation(); toggle_status({{ item.id }}, this)" {% if item.status %}checked{% endif %}>
+      <span class="task-title">{{ item.todo_item }}</span>
+      <span class="badge prio prio-{{ item.itemPriority }}" title="{{ item.get_itemPriority_display }}">P{{ item.itemPriority }}</span>
+      {% if item.recurrence != "none" %}<span class="badge bg-info text-dark">{{ item.get_recurrence_display }}</span>{% endif %}
+      {% if not item.status and not item.recurring_task and item.due_date < now %}<span class="badge bg-danger">Overdue</span>{% endif %}
+      {% for tag in item.tag_list %}<span class="badge tag">#{{ tag }}</span>{% endfor %}
+    </summary>
+    <dl class="task-details">
+      <div><dt>Priority</dt><dd>{{ item.get_itemPriority_display }}</dd></div>
+      <div><dt>Starts</dt><dd>{{ item.start_date|date:"D j M Y, H:i"|default:"—" }}</dd></div>
+      <div><dt>Due</dt><dd>{{ item.due_date|date:"D j M Y, H:i" }}</dd></div>
+      <div><dt>Pomodoros</dt><dd>{{ item.pomodoro_completed }} of {{ item.pomodoro_estimate }}</dd></div>
+    </dl>
+    <div class="task-actions">
+      <a class="btn btn-sm btn-outline-primary" href="{% url 'todolist:pomodoroTimer' item.id %}">⏲️ Timer</a>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'todolist:edit_item' item.id %}">✏️ Edit</a>
+      <a class="btn btn-sm btn-outline-danger" href="{% url 'todolist:deleteItem' item.id %}"
+         onclick="return confirm('Delete this task?')">🗑️ Delete</a>
+    </div>
+  </details>
+</li>

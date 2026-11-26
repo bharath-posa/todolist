@@ -1,0 +1,4 @@
+<ul class="list-group task-list">
+  {% for item in items %}{% include "todolist/_item.html" %}{% empty %}<li class="list-group-item empty">{{ empty }}</li>{% endfor %}
+  <li class="list-group-item empty filtered-empty" hidden>No tasks match the filters.</li>
+</ul>
