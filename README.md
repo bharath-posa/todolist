@@ -1,5 +1,8 @@
 # todolist
-This is a todolist applications which tries to incorporate features that are premium in commerical applications 
+A todo list that brings features usually found in premium apps: repeating tasks, priorities, tags, projects,
+a pomodoro timer, tracked values, progress charts, and points, levels and streaks.
+
+Documentation: [user guide](docs/user-guide.md) · [development](docs/development.md) · [deployment](docs/deployment.md) 
 
 ## Run locally
 
