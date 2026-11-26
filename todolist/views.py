@@ -14,11 +14,10 @@ import datetime
 #from django.db.models import Item
 # Create your views here.
 
-@login_required(login_url='login/')
+@login_required
 def index(request):
     if request.user.is_authenticated:
         user = request.user
-        print(user.username)
         recurring_items = Item.objects.filter(recurring_task='1',user=user).order_by('status') 
         completed_items = Item.objects.filter(status='1',user=user).order_by('pomodoro_estimate')   
         list_of_items = Item.objects.filter(recurring_task='0',user=user,status='0').order_by('-create_date')
@@ -38,12 +37,11 @@ def thanks(request):
     return  render(request, 'todolist/thanks.html', context)
 
 
-@login_required(login_url='login/')
+@login_required
 def additem(request):
 
     if request.user.is_authenticated:
         user = request.user
-        print(user)
 
 
         # if this is a POST request we need to process the form data
@@ -90,7 +88,7 @@ def additem(request):
 
         return render(request, 'todolist/additem.html', {'form': form})
 
-@login_required(login_url='login/')
+@login_required
 def edit_item(request,id):
     if request.user.is_authenticated:
         user = request.user
@@ -104,8 +102,8 @@ def edit_item(request,id):
                 autoCompletePomodoroValue = True
             else:
                 autoCompletePomodoroValue = False
-            Item.objects.filter(pk=id).update(
-                user = request.POST.get('user'),
+            get_object_or_404(Item, pk=id, user=request.user)
+            Item.objects.filter(pk=id, user=request.user).update(
                 todo_item=request.POST.get('todo_item'), 
                 start_date=request.POST.get('start_date'), 
                 due_date=request.POST.get('due_date'), 
@@ -120,18 +118,17 @@ def edit_item(request,id):
             
             
         if id:
-            edit_item = Item.objects.get(id=id)
+            edit_item = get_object_or_404(Item, id=id, user=request.user)
             form = ItemUpdateForm(instance=edit_item)
-            print("showing the form")
             return render(request,'todolist/editItem.html',{'form':form})
         
-@login_required(login_url='login/')
+@login_required
 def update_item_status(request):
     if request.user.is_authenticated:
         user = request.user
         if request.method == 'POST':
             item_id = int(QueryDict(request.body)['id'])
-            updateItem = Item.objects.get(id=item_id)
+            updateItem = get_object_or_404(Item, id=item_id, user=request.user)
             # Check the condition for pomodoro complete 
             
             update_status = False
@@ -140,19 +137,17 @@ def update_item_status(request):
                 updated_status = True
             else:
                 updated_status = False
-            Item.objects.filter(pk=item_id).update(status=updated_status)
+            Item.objects.filter(pk=item_id, user=request.user).update(status=updated_status)
             
-        return redirect("You updated the db status ")
+        return JsonResponse({"ok": True})
 
-@login_required(login_url='login/')
+@login_required
 def reload_with_filter(request,id):
     if request.user.is_authenticated:
         user = request.user
         if request.method == 'GET':
             #filter_value = (QueryDict(request.body)['filter_value'])
             filter_value = id
-            print(filter_value)
-            print("entered reload with filter")
             if filter_value:
                 recurring_items = Item.objects.filter(recurring_task='1',user=user,itemPriority=filter_value).order_by('status') 
                 completed_items = Item.objects.filter(status='1',user=user,itemPriority=filter_value).order_by('pomodoro_estimate')   
@@ -166,61 +161,57 @@ def reload_with_filter(request,id):
 
 
 
-@login_required(login_url='login/')
+@login_required
 def deleteItem(request,id):
 
     item_id = id
     if item_id :
             # saving the deleted item in deleted table 
         user = request.user
-        deleted_item = Item.objects.get(id=item_id)
+        deleted_item = get_object_or_404(Item, id=item_id, user=request.user)
         deleteObj = DeleteItem(
                                user=request.user,
                                todo_item=deleted_item.todo_item, 
                                create_date=deleted_item.create_date, 
+                               start_date=deleted_item.start_date,
                                due_date=deleted_item.due_date, 
                                status=deleted_item.status, 
                                recurring_task=deleted_item.recurring_task,
                                pomodoro_estimate=deleted_item.pomodoro_estimate,
                                pomodoro_completed=deleted_item.pomodoro_completed,
                                itemPriority=deleted_item.itemPriority,
-                               autoCompletePomodoro=deleted_item.pomodoro_completed
+                               autoCompletePomodoro=deleted_item.autoCompletePomodoro,
+                               tags=deleted_item.tags
                                )
         #deleteObj = DeletedItem(deleted_item)
         deleteObj.save()
         # delete it from items table 
-        Item.objects.filter(pk=item_id).delete()
+        Item.objects.filter(pk=item_id, user=request.user).delete()
         return redirect('/todolist/')
 
-@login_required(login_url='login/')
+@login_required
 def pomodoroTimer(request,id):
-    print(id)
     item_id = id
     if item_id :
             # saving the deleted item in deleted table 
-        pomodoro_item = Item.objects.get(id=item_id)
+        pomodoro_item = get_object_or_404(Item, id=item_id, user=request.user)
 
     return render(request,"todolist/pomodorotimer.html",{'item':pomodoro_item})
 
-@login_required(login_url='login/')
+@login_required
 def updatePomodoroCount(request):
     if request.method == 'POST':
-        print("reached pomodoro count")
         item_id = QueryDict(request.body)['id']
-        print("update item id",item_id)
         user = request.user
-        pomodoro_item = Item.objects.get(id=item_id)
-        print(pomodoro_item.pomodoro_completed)
+        pomodoro_item = get_object_or_404(Item, id=item_id, user=request.user)
         
         if pomodoro_item:
             count = pomodoro_item.pomodoro_completed  + 1
-            print(count)
-            Item.objects.filter(pk=item_id).update(pomodoro_completed=count)
+            Item.objects.filter(pk=item_id, user=request.user).update(pomodoro_completed=count)
 
             if pomodoro_item.autoCompletePomodoro and pomodoro_item.pomodoro_estimate == count:
-                Item.objects.filter(pk=item_id).update(status=True)
+                Item.objects.filter(pk=item_id, user=request.user).update(status=True)
 
-            print("The pomodoro status " + str(pomodoro_item.autoCompletePomodoro))
             
             itemDict = {'id':item_id, 'pomdoro_completed':count}
 
@@ -243,14 +234,12 @@ def addUser(request):
         }
         return render(request , 'todolist/addUser.html' , context=context)
     else:
-        print(request.POST)
         form = UserCreationForm(request.POST)  
         context = {
             "form" : form
         }
         if form.is_valid():
             user = form.save()
-            print(user)
             if user is not None:
                 return redirect('todolist:login')
         else:
@@ -286,7 +275,6 @@ def login(request):
         return render(request , 'todolist/login.html' , context=context )
     else:
         form = AuthenticationForm(data=request.POST)
-        print(form.is_valid())
         if form.is_valid():
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
@@ -298,7 +286,7 @@ def login(request):
 
             return redirect('todolist:login')
 
-@login_required(login_url='login/')
+@login_required
 def signout(request):
     logout(request)
     return redirect('todolist:login')
@@ -307,10 +295,8 @@ def signout(request):
 def checkAndUpdateRecurringTask():
     # get todays date
     today  = datetime.datetime.today().strftime('%Y-%m-%d')
-    print("today date",today)
     # Compare it with date in django Sqlite table
-    last_date = dateStatusCheck.objects.get(id="1")
-    print("last date",last_date)
+    last_date, _ = dateStatusCheck.objects.get_or_create(id=1, defaults={"today_date": datetime.date.today()})
     # if they mismatch update all the pomodoro completed
     # to zero for recurring tasks and update the value of 
     # table to todays date
@@ -319,7 +305,6 @@ def checkAndUpdateRecurringTask():
         # update them with "o" for pomodoro completed & 
         # set Status back to not completed
         Item.objects.filter(recurring_task='1').update(pomodoro_completed=0,status=False)
-        print("pomodoro values reseted for recurring task")
         dateStatusCheck.objects.filter(id="1").update(today_date=today)
 
 '''

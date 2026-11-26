@@ -1,0 +1,28 @@
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Django checks and tests
+        env:
+          DJANGO_DEBUG: "true"
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+          python manage.py test todolist -v 2
+      - name: Production settings refuse to start without a secret key
+        run: |
+          if python manage.py check 2>/dev/null; then echo "started without a secret key"; exit 1; fi
+      - name: Image builds
+        run: docker build -t todolist .
