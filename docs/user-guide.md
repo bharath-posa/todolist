@@ -5,7 +5,9 @@ Create an account from **Create an account** on the sign-in page. Everything you
 metrics, points) is private to your account.
 
 ## Tasks
-**＋ Add task** opens the task form:
+Type in the **Add a task…** box at the top of the task list and press Enter: the task is added, due
+today, with priority 2. **More options** (or the round **＋** button on a phone's task list, which jumps
+to the box) opens the full form, keeping what you typed:
 
 | Field | Meaning |
 |---|---|
@@ -23,13 +25,18 @@ to open it for dates, pomodoros and **Timer**, **Edit** and **Delete**. Tick the
 
 ### Tabs
 - **Today** (default): unfinished tasks due today or overdue, plus repeating tasks you haven't done yet
-  this period. Overdue tasks get a red *Overdue* badge.
+  this period. Tasks whose due day has passed are listed first under **Overdue**.
 - **Repeating**: all repeating tasks.
 - **One-off**: unfinished tasks that don't repeat.
-- **Completed**: finished tasks.
+- **Done**: finished tasks.
 
 ### Filters
-Project, priority, tag and search combine; change any of them and the lists update straight away.
+The search box is always shown. **Filter** opens project, priority and tag; each one you set appears as a
+chip under the search box (tap the chip to remove it). They all combine and the lists update straight away.
+
+## Getting around
+On a phone, Tasks, Projects, Metrics and Insights are in the bar at the bottom of the screen. On a wider
+screen they are in the top bar. Your initial at the top right opens the account menu with **Sign out**.
 
 ### Repeating tasks
 A repeating task starts over (not done, 0 pomodoros) when its period rolls over: the next day, the next
