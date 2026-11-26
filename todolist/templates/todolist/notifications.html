@@ -1,0 +1,93 @@
+{% extends "todolist/base.html" %}
+{% block title %}Notifications · Todo list{% endblock %}
+{% block content %}
+<div class="form-page notify-page">
+<h1 class="page-title">Notifications</h1>
+<p class="signed-in">Reminders when tasks are due, and a short summary each morning.</p>
+{% if notice %}<div class="alert alert-success" role="status">{{ notice }}</div>{% endif %}
+
+<section class="card card-body mb-3" id="device-card"
+         data-enabled="{{ enabled|yesno:'1,0' }}" data-key="{{ public_key }}"
+         data-subscribe="{% url 'todolist:push_subscribe' %}" data-unsubscribe="{% url 'todolist:push_unsubscribe' %}"
+         data-test="{% url 'todolist:push_test' %}">
+  <h2 class="h5">This device</h2>
+
+  {% if not enabled %}
+  <p class="mb-0">Notifications aren't set up on the server yet.</p>
+  {% else %}
+  {# Shown by app.js depending on what this browser can do. #}
+  <div data-state="loading"><p class="hint mb-0">Checking this device…</p></div>
+
+  <div data-state="install" hidden>
+    <p><strong>On iPhone and iPad, add the app to your Home Screen first.</strong> Safari can only send notifications to apps opened from the Home Screen (iOS 16.4 or later).</p>
+    <ol class="steps">
+      <li>Tap the <strong>Share</strong> button <span aria-hidden="true">(□↑)</span> in Safari.</li>
+      <li>Choose <strong>Add to Home Screen</strong>, then <strong>Add</strong>.</li>
+      <li>Open <strong>Todo</strong> from your Home Screen, sign in, and come back to this page (your initial → Notifications).</li>
+    </ol>
+  </div>
+
+  <div data-state="unsupported" hidden><p class="mb-0">This browser can't show notifications. Try Safari on iPhone (from the Home Screen), or Chrome, Edge or Firefox.</p></div>
+
+  <div data-state="blocked" hidden>
+    <p class="mb-0">Notifications are blocked for this app. On iPhone: <em>Settings → Notifications → Todo</em> and turn on <em>Allow Notifications</em>.
+       In a desktop browser: click the icon left of the address and allow notifications. Then reload this page.</p>
+  </div>
+
+  <div data-state="off" hidden>
+    <p>Notifications are off on this device.</p>
+    <button class="btn btn-success" type="button" data-action="enable">Turn on notifications</button>
+  </div>
+
+  <div data-state="on" hidden>
+    <p>✅ Notifications are on for this device.</p>
+    <div class="actions justify-content-start">
+      <button class="btn btn-outline-success" type="button" data-action="test">Send a test</button>
+      <button class="btn btn-outline-secondary" type="button" data-action="disable">Turn off on this device</button>
+    </div>
+  </div>
+  <p class="notify-status hint mb-0" role="status" aria-live="polite"></p>
+  {% endif %}
+</section>
+
+<form method="post" class="card card-body mb-3" novalidate>
+  {% csrf_token %}
+  <h2 class="h5">What to send</h2>
+  <div class="form-check mb-2">
+    {{ form.due_reminders }}
+    <label class="form-check-label" for="{{ form.due_reminders.id_for_label }}">{{ form.due_reminders.label }}</label>
+  </div>
+  <div class="mb-3 ms-4">
+    <label class="form-label" for="{{ form.lead_minutes.id_for_label }}">{{ form.lead_minutes.label }}</label>
+    {{ form.lead_minutes }}
+    <div class="form-text">For one-off tasks with a due time. Repeating tasks are in the morning summary.</div>
+  </div>
+  <div class="form-check mb-2">
+    {{ form.daily_summary }}
+    <label class="form-check-label" for="{{ form.daily_summary.id_for_label }}">{{ form.daily_summary.label }}</label>
+  </div>
+  <div class="mb-3 ms-4">
+    <label class="form-label" for="{{ form.summary_time.id_for_label }}">{{ form.summary_time.label }}</label>
+    {{ form.summary_time }}
+    {% for e in form.summary_time.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+    <div class="form-text">What's due today and what's overdue. Skipped on days with nothing to do. Time zone: {{ prefs.timezone }}.</div>
+  </div>
+  <div class="actions justify-content-start"><button class="btn btn-success" type="submit">Save</button></div>
+</form>
+
+{% if devices %}
+<section class="card card-body mb-3">
+  <h2 class="h5">Devices with notifications on</h2>
+  <ul class="list-group list-group-flush">
+    {% for d in devices %}
+    <li class="list-group-item device-row">
+      <span>{{ d.device|default:"Device" }}<br><span class="hint">Added {{ d.created_at|date:"j M Y" }}{% if d.last_success_at %} · last sent {{ d.last_success_at|timesince }} ago{% endif %}</span></span>
+      <form method="post" action="{% url 'todolist:push_remove_device' d.id %}">{% csrf_token %}
+        <button class="btn btn-sm btn-outline-danger" type="submit">Remove</button></form>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+</div>
+{% endblock %}

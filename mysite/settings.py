@@ -159,6 +159,13 @@ LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
 
+# Web Push reminders. Without a key file the app works as before and the Notifications page says they're off.
+#   DJANGO_VAPID_PRIVATE_KEY_FILE   PEM file with the VAPID (P-256) private key
+#   DJANGO_VAPID_SUBJECT            contact for push services; defaults to the public origin
+VAPID_PRIVATE_KEY_FILE = os.environ.get("DJANGO_VAPID_PRIVATE_KEY_FILE", "")
+VAPID_SUBJECT = (os.environ.get("DJANGO_VAPID_SUBJECT", "")
+                 or (PUBLIC_ORIGIN if PUBLIC_ORIGIN.startswith("https://") else "https://localhost"))   # must be https:// or mailto:
+
 USE_I18N = True
 
 USE_TZ = True

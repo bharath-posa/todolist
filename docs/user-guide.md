@@ -66,6 +66,18 @@ Deleting a project keeps its tasks; they just have no project afterwards.
 unit, then add entries (value, time, optional note). Each metric shows its latest value, the change since
 the first entry, the lowest and highest values, and a chart.
 
+## Notifications
+Your initial → **🔔 Notifications**.
+
+- **Due reminders** for one-off tasks: when they're due, or 15 minutes, 1 hour or 1 day before.
+- **Morning summary** at the time you pick (in your device's time zone): how many tasks are due today and
+  overdue, with the first few names. Days with nothing to do are skipped.
+
+Turn notifications on separately on each device. **On iPhone and iPad** (iOS 16.4 or later) notifications
+only work in the Home Screen app: in Safari tap **Share → Add to Home Screen**, open **Todo** from the Home
+Screen, sign in, then turn notifications on. **Send a test** checks everything works. Devices are listed on the
+same page and can be removed there.
+
 ## Insights, points and levels
 **Insights** shows your activity for the last 30 days (tasks finished and pomodoros per day), finished vs.
 open tasks by priority, and project progress.

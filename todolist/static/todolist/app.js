@@ -62,6 +62,79 @@
     Chart.defaults.borderColor = cs.getPropertyValue("--tl-border").trim() || "#dee2e6";
   };
 
+  // Service worker: lets the Home Screen app receive notifications. It doesn't cache pages.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("/todolist/sw.js", { scope: "/todolist/" }).catch(function () {});
+    });
+  }
+
+  // Notifications page: turn push on or off for this device, and send a test.
+  function setupNotifications(card) {
+    var status = card.querySelector(".notify-status");
+    function show(state) { card.querySelectorAll("[data-state]").forEach(function (el) { el.hidden = el.dataset.state !== state; }); }
+    function say(text) { if (status) status.textContent = text || ""; }
+    function post(url, body) {
+      return fetch(url, { method: "POST", credentials: "same-origin", body: JSON.stringify(body || {}),
+                          headers: { "Content-Type": "application/json", "X-CSRFToken": csrf } })
+        .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; }); });
+    }
+    function keyBytes(b64) {
+      var s = (b64 + "===".slice((b64.length + 3) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+      var raw = atob(s), out = new Uint8Array(raw.length);
+      for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+      return out;
+    }
+    function deviceName() {
+      var ua = navigator.userAgent, os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "iPad"
+        : /Android/.test(ua) ? "Android" : /Mac/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : /Linux/.test(ua) ? "Linux" : "Device";
+      var app = (navigator.standalone || matchMedia("(display-mode: standalone)").matches) ? "Home Screen app"
+        : /Edg\//.test(ua) ? "Edge" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "browser";
+      return os + " · " + app;
+    }
+    var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    var standalone = navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+    var supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+    if (!supported) { show(ios && !standalone ? "install" : "unsupported"); return; }
+    if (Notification.permission === "denied") { show("blocked"); return; }
+
+    var reg = null;
+    navigator.serviceWorker.register("/todolist/sw.js", { scope: "/todolist/" })
+      .then(function () { return navigator.serviceWorker.ready; })
+      .then(function (r) { reg = r; return r.pushManager.getSubscription(); })
+      .then(function (sub) {
+        if (sub) { post(card.dataset.subscribe, { subscription: sub.toJSON(), device: deviceName(),
+                                                  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }).catch(function () {}); }
+        show(sub ? "on" : "off");
+      })
+      .catch(function () { show("unsupported"); });
+
+    card.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-action]"); if (!b || !reg) return;
+      var action = b.dataset.action; b.disabled = true; say("");
+      var done = function () { b.disabled = false; };
+      if (action === "enable") {
+        Notification.requestPermission().then(function (perm) {
+          if (perm !== "granted") { show(perm === "denied" ? "blocked" : "off"); throw new Error("Permission wasn't given."); }
+          return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(card.dataset.key) });
+        }).then(function (sub) {
+          return post(card.dataset.subscribe, { subscription: sub.toJSON(), device: deviceName(),
+                                                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+        }).then(function () { show("on"); say("Turned on. Try “Send a test”."); })
+          .catch(function (err) { say(err.message || "Couldn't turn notifications on."); }).then(done);
+      } else if (action === "disable") {
+        reg.pushManager.getSubscription().then(function (sub) {
+          if (!sub) return;
+          return post(card.dataset.unsubscribe, { endpoint: sub.endpoint }).then(function () { return sub.unsubscribe(); });
+        }).then(function () { show("off"); say("Turned off on this device."); })
+          .catch(function () { say("Couldn't turn notifications off. Try again."); }).then(done);
+      } else if (action === "test") {
+        post(card.dataset.test).then(function (j) { say(j.ok ? "Sent. It should appear in a few seconds." : "Nothing was sent. Turn notifications off and on again."); })
+          .catch(function () { say("Couldn't send the test."); }).then(done);
+      }
+    });
+  }
+
   function onReady(fn) { if (document.readyState !== "loading") fn(); else document.addEventListener("DOMContentLoaded", fn); }
 
   onReady(function () {
@@ -158,6 +231,9 @@
         document.querySelectorAll("[data-due-offset]").forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
       });
     });
+
+    var notifyCard = document.getElementById("device-card");
+    if (notifyCard && notifyCard.dataset.enabled === "1") setupNotifications(notifyCard);
 
     // Appearance: Auto (follow the device), Light or Dark (#18).
     var themeButtons = document.querySelectorAll(".theme-switch [data-theme]");

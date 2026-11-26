@@ -30,6 +30,14 @@
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <link rel="stylesheet" href="{% static 'todolist/style.css' %}">
   <meta name="csrf-token" content="{{ csrf_token }}">
+  {# Installable on the Home Screen; needed for notifications on iPhone. #}
+  <link rel="manifest" href="{% url 'todolist:manifest' %}">
+  <link rel="apple-touch-icon" href="{% static 'todolist/icons/apple-touch-icon.png' %}">
+  <link rel="icon" type="image/png" sizes="192x192" href="{% static 'todolist/icons/icon-192.png' %}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Todo">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   {% block head %}{% endblock %}
 </head>
 <body{% if user.is_authenticated %} class="signed-in-layout"{% endif %}>
@@ -66,6 +74,7 @@
             <button type="button" data-theme="light" aria-pressed="false">Light</button>
             <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
           </div>
+          <a class="account-link" href="{% url 'todolist:notifications' %}">🔔 Notifications</a>
           <a class="account-signout" href="{% url 'todolist:signout' %}">Sign out</a>
         </div>
       </details>
@@ -77,7 +86,7 @@
     <a href="{% url 'todolist:metrics' %}" {% if n in 'metrics metric' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-metrics"/></svg>Metrics</a>
     <a href="{% url 'todolist:insights' %}" {% if n == 'insights' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-insights"/></svg>Insights</a>
   </nav>
-  {% if n != 'additem' and n != 'edit_item' %}
+  {% if n != 'additem' and n != 'edit_item' and n != 'notifications' %}
   <a class="fab" href="{% url 'todolist:additem' %}" aria-label="Add a task" data-quick-add-target>＋</a>
   {% endif %}
   <div class="shell has-sidebar">

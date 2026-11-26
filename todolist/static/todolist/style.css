@@ -83,7 +83,6 @@ body { background: var(--tl-bg); color: var(--tl-text); font-family: var(--font)
 .list-group { --bs-list-group-bg: var(--tl-surface); --bs-list-group-border-color: var(--tl-border); --bs-list-group-color: var(--tl-text); }
 .progress { --bs-progress-bg: var(--tl-surface-2); }
 .tabcontent[hidden] { display: none !important; }   /* a tab panel is hidden only by [hidden] */
-input[type=checkbox]:checked + label.form-check-label { text-decoration: line-through; }
 
 /* Focus: always visible for keyboard users (#20) */
 :focus-visible { outline: 3px solid var(--tl-focus); outline-offset: 2px; }
@@ -322,3 +321,10 @@ li.task.just-saved { outline: 3px solid var(--tl-accent); outline-offset: -3px; 
 .badges li span { font-size: var(--fs-sm); }
 .badges li.earned { border: 1px solid var(--tl-accent); background: var(--tl-accent-soft); color: var(--tl-on-accent-soft); }
 .badges li.earned strong::before { content: "🏅 "; }
+
+/* ---------- 11. Home Screen app and notifications ---------- */
+.topnav { padding-top: env(safe-area-inset-top); }   /* standalone app on iPhone draws under the status bar */
+.topnav .account-link { display: block; padding: .55rem var(--sp-2); border-radius: var(--radius-sm); color: var(--tl-text); }
+.topnav .account-link:hover, .topnav .account-link:focus-visible { background: var(--tl-surface-2); }
+.notify-page .steps li { margin-bottom: var(--sp-2); }
+.device-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }

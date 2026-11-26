@@ -203,3 +203,46 @@ class MetricEntry(models.Model):
 
     class Meta:
         ordering = ['-recorded_at']
+
+
+# ---------- notifications ----------
+
+class PushSubscription(models.Model):
+    """One device (browser or Home Screen app) that allowed notifications."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_subscriptions')
+    endpoint = models.URLField(max_length=1000, unique=True)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=100)
+    device = models.CharField(max_length=80, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    failures = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.user} · {self.device or 'device'}"
+
+
+LEAD_CHOICES = [(0, "When it's due"), (15, "15 minutes before"), (60, "1 hour before"), (1440, "1 day before")]
+
+
+class NotificationSettings(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='notification_settings')
+    timezone = models.CharField(max_length=64, default="UTC")
+    due_reminders = models.BooleanField("Remind me about due tasks", default=True)
+    lead_minutes = models.PositiveIntegerField("When", choices=LEAD_CHOICES, default=15)
+    daily_summary = models.BooleanField("Morning summary", default=True)
+    summary_time = models.TimeField("At", default=datetime.time(8, 0))
+
+    def __str__(self):
+        return f"{self.user} notifications"
+
+
+class SentNotification(models.Model):
+    """Remembers what was sent so a reminder or summary never goes out twice."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='+')
+    kind = models.CharField(max_length=20)
+    key = models.CharField(max_length=100)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['user', 'kind', 'key'], name='notification_sent_once')]
