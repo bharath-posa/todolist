@@ -497,3 +497,55 @@ class CalmerRows(Base):
         self.assertIn(p.color, body)
         self.assertIn("project-name stretched", body)
         self.assertEqual(Project(pk=1).color, Project(pk=9).color)   # stable palette by id
+
+
+class DesignSystem(Base):
+    """UI Tier 3 (#17-#20): tokens, dark mode, desktop sidebar, empty states."""
+
+    def css(self):
+        from django.contrib.staticfiles import finders
+        return open(finders.find("todolist/style.css")).read()
+
+    def test_colours_come_from_tokens(self):
+        import re
+        css = self.css()
+        body = css.split("/* ---------- 2. Base ---------- */", 1)[1]
+        # Outside the token blocks, hex colours only appear for fixed brand surfaces (white text, the toast).
+        allowed = {"#fff", "#146c43", "#212529", "#e9ecef", "#16191d", "#8ce99a"}
+        stray = set(re.findall(r"#[0-9a-fA-F]{3,6}\b", body)) - allowed
+        self.assertEqual(stray, set())
+        self.assertIn(':root[data-bs-theme="dark"]', css)
+        self.assertNotIn("Fantasy", css)
+
+    def test_layout_has_theme_switch_bootstrap_53_and_sidebar(self):
+        from .models import Project
+        Project.objects.create(user=self.alice, name="Garden")
+        self.login(self.alice)
+        body = self.client.get("/todolist/").content.decode()
+        self.assertIn("bootstrap@5.3.3", body)
+        self.assertIn('data-theme="dark"', body)
+        self.assertIn('class="sidebar"', body)
+        side = body[body.index('class="sidebar"'):body.index("</aside>")]
+        self.assertIn("Garden", side)
+        self.assertEqual(self.client.get("/todolist/").context["sidebar"]["today_count"], 0)
+
+    def test_sidebar_lists_only_own_unarchived_projects(self):
+        from .models import Project
+        Project.objects.create(user=self.alice, name="Old", archived=True)
+        Project.objects.create(user=self.bob, name="Bobs")
+        self.login(self.alice)
+        body = self.client.get("/todolist/projects/").content.decode()
+        side = body[body.index('class="sidebar"'):body.index("</aside>")]
+        self.assertNotIn("Old", side)
+        self.assertNotIn("Bobs", side)
+
+    def test_friendly_empty_states(self):
+        self.item.delete()
+        self.login(self.alice)
+        self.assertContains(self.client.get("/todolist/"), "All clear for today")
+        self.assertContains(self.client.get("/todolist/projects/"), "Create a project")
+
+    def test_signed_out_pages_have_no_sidebar(self):
+        body = self.client.get("/todolist/login/").content.decode()
+        self.assertNotIn('class="sidebar"', body)
+        self.assertIn("<main", body)

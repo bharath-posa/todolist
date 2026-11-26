@@ -29,7 +29,9 @@
     </div>
   </li>
   {% empty %}
-  <li class="list-group-item empty">No projects yet. Create one to group related tasks.</li>
+  <li class="list-group-item empty-state"><span class="empty-icon" aria-hidden="true">📁</span>
+    <strong>No projects yet</strong><p>Group related tasks, like “Move house” or “Get fit”, and watch their progress.</p>
+    <a class="btn btn-success" href="{% url 'todolist:project_new' %}">＋ Create a project</a></li>
   {% endfor %}
 </ul>
 <p class="hint mt-3">Tasks without a project: {{ unassigned.done }} of {{ unassigned.total }} done.</p>

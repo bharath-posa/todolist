@@ -27,3 +27,7 @@
 .footer .container {
 
 }
+
+/* Headings on the timer page (moved here from the shared stylesheet, which no longer styles bare h1/h2). */
+h1 { font-family: Fantasy; text-align: center; }
+h2 { text-align: center; }

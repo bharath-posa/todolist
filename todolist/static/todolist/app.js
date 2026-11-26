@@ -54,6 +54,14 @@
     });
   });
 
+  // Charts read their text and grid colours from the theme tokens (#18).
+  window.tlChartTheme = function () {
+    if (!window.Chart) return;
+    var cs = getComputedStyle(document.documentElement);
+    Chart.defaults.color = cs.getPropertyValue("--tl-muted").trim() || "#5f6b76";
+    Chart.defaults.borderColor = cs.getPropertyValue("--tl-border").trim() || "#dee2e6";
+  };
+
   function onReady(fn) { if (document.readyState !== "loading") fn(); else document.addEventListener("DOMContentLoaded", fn); }
 
   onReady(function () {
@@ -150,6 +158,21 @@
         document.querySelectorAll("[data-due-offset]").forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
       });
     });
+
+    // Appearance: Auto (follow the device), Light or Dark (#18).
+    var themeButtons = document.querySelectorAll(".theme-switch [data-theme]");
+    function markTheme() {
+      var current = window.tlTheme ? window.tlTheme() : "auto";
+      themeButtons.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.theme === current)); });
+    }
+    themeButtons.forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (window.tlSetTheme) window.tlSetTheme(b.dataset.theme);
+        markTheme();
+        if (document.querySelector("canvas")) location.reload();   // charts pick up the new colours
+      });
+    });
+    markTheme();
 
     // Pop-up menus (account #10, project ⋯ #16): one open at a time; close on Escape or a tap elsewhere.
     var menus = document.querySelectorAll("details.account, details.row-menu");

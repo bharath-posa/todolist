@@ -78,20 +78,20 @@
   </section>
   {% endif %}
   {% else %}
-  {% include "todolist/_list.html" with items=today_items empty="Nothing due today. Nice." %}
+  {% include "todolist/_list.html" with items=today_items empty_icon="🎉" empty_title="All clear for today" empty="Nothing due today. Add a task in the box above, or enjoy the free time." %}
   {% endif %}
   <p class="filtered-empty" hidden>No tasks match the filters.</p>
 </div>
 <div id="Recurring" class="tabcontent" role="tabpanel" hidden>
-  {% include "todolist/_list.html" with items=recurring_items empty="No repeating tasks yet." %}
+  {% include "todolist/_list.html" with items=recurring_items empty_icon="🔁" empty_title="No repeating tasks yet" empty="Set Repeats on a task to have it come back every day, week, month or year." %}
   <p class="filtered-empty" hidden>No tasks match the filters.</p>
 </div>
 <div id="Unit" class="tabcontent" role="tabpanel" hidden>
-  {% include "todolist/_list.html" with items=list_of_items empty="No open one-off tasks." %}
+  {% include "todolist/_list.html" with items=list_of_items empty_icon="📝" empty_title="No open one-off tasks" empty="Tasks that don't repeat show up here until they're done." %}
   <p class="filtered-empty" hidden>No tasks match the filters.</p>
 </div>
 <div id="Completed" class="tabcontent" role="tabpanel" hidden>
-  {% include "todolist/_list.html" with items=completed_items empty="Nothing completed yet." %}
+  {% include "todolist/_list.html" with items=completed_items empty_icon="✅" empty_title="Nothing finished yet" empty="Tick a task's circle when it's done and it moves here." %}
   <p class="filtered-empty" hidden>No tasks match the filters.</p>
 </div>
 {% endblock %}

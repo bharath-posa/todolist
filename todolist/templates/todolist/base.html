@@ -3,10 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#198754">
+  <meta name="theme-color" content="#146c43" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f5132" media="(prefers-color-scheme: dark)">
   <title>{% block title %}Todo list{% endblock %}</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+  {# Dark mode (#18): follow the device unless the account menu picked Light or Dark. Runs before CSS to avoid a flash. #}
+  <script>
+    (function () {
+      var choice = "auto";
+      try { choice = localStorage.getItem("tl-theme") || "auto"; } catch (e) {}
+      var dark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+      function apply() {
+        var mode = choice === "light" || choice === "dark" ? choice : (dark && dark.matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-bs-theme", mode);
+      }
+      apply();
+      if (dark && dark.addEventListener) dark.addEventListener("change", apply);
+      window.tlSetTheme = function (value) {
+        choice = value;
+        try { localStorage.setItem("tl-theme", value); } catch (e) {}
+        apply();
+      };
+      window.tlTheme = function () { return choice; };
+    })();
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <link rel="stylesheet" href="{% static 'todolist/style.css' %}">
   <meta name="csrf-token" content="{{ csrf_token }}">
   {% block head %}{% endblock %}
@@ -39,25 +60,62 @@
         <summary aria-label="Account menu for {{ user.username }}"><span class="avatar" aria-hidden="true">{{ user.username|first|upper }}</span></summary>
         <div class="account-menu">
           <p class="account-name">Signed in as <strong>{{ user.username }}</strong></p>
+          <p class="theme-label" id="theme-label">Appearance</p>
+          <div class="theme-switch" role="group" aria-labelledby="theme-label">
+            <button type="button" data-theme="auto" aria-pressed="false">Auto</button>
+            <button type="button" data-theme="light" aria-pressed="false">Light</button>
+            <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+          </div>
           <a class="account-signout" href="{% url 'todolist:signout' %}">Sign out</a>
         </div>
       </details>
     </div>
   </header>
   <nav class="bottomnav" aria-label="Main">
-    <a href="{% url 'todolist:index' %}" {% if n == 'index' %}aria-current="page"{% endif %}><svg aria-hidden="true"><use href="#i-tasks"/></svg>Tasks</a>
-    <a href="{% url 'todolist:projects' %}" {% if n in 'projects project project_new project_edit' %}aria-current="page"{% endif %}><svg aria-hidden="true"><use href="#i-projects"/></svg>Projects</a>
-    <a href="{% url 'todolist:metrics' %}" {% if n in 'metrics metric' %}aria-current="page"{% endif %}><svg aria-hidden="true"><use href="#i-metrics"/></svg>Metrics</a>
-    <a href="{% url 'todolist:insights' %}" {% if n == 'insights' %}aria-current="page"{% endif %}><svg aria-hidden="true"><use href="#i-insights"/></svg>Insights</a>
+    <a href="{% url 'todolist:index' %}" {% if n == 'index' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-tasks"/></svg>Tasks</a>
+    <a href="{% url 'todolist:projects' %}" {% if n in 'projects project project_new project_edit' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-projects"/></svg>Projects</a>
+    <a href="{% url 'todolist:metrics' %}" {% if n in 'metrics metric' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-metrics"/></svg>Metrics</a>
+    <a href="{% url 'todolist:insights' %}" {% if n == 'insights' %}aria-current="page"{% endif %}><svg class="icon" aria-hidden="true"><use href="#i-insights"/></svg>Insights</a>
   </nav>
   {% if n != 'additem' and n != 'edit_item' %}
   <a class="fab" href="{% url 'todolist:additem' %}" aria-label="Add a task" data-quick-add-target>＋</a>
   {% endif %}
+  <div class="shell has-sidebar">
+    {# Desktop sidebar (#19): lists and projects, always one click away. Hidden below 992px. #}
+    <aside class="sidebar" aria-label="Lists and projects">
+      <nav class="side-section" aria-label="Main">
+        <ul class="side-list">
+          <li><a href="{% url 'todolist:index' %}" {% if n == 'index' %}aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#i-tasks"/></svg><span class="label">Tasks</span>
+            <span class="num" title="Due today or overdue">{{ sidebar.today_count }}</span></a></li>
+          <li><a href="{% url 'todolist:metrics' %}" {% if n in 'metrics metric health_connect' %}aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#i-metrics"/></svg><span class="label">Metrics</span></a></li>
+          <li><a href="{% url 'todolist:insights' %}" {% if n == 'insights' %}aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#i-insights"/></svg><span class="label">Insights</span></a></li>
+        </ul>
+      </nav>
+      <section class="side-section" aria-labelledby="side-projects">
+        <h2 class="side-title" id="side-projects"><span>Projects</span>
+          <a href="{% url 'todolist:project_new' %}" aria-label="New project" title="New project">＋</a></h2>
+        <ul class="side-list">
+          <li><a href="{% url 'todolist:projects' %}" {% if n == 'projects' %}aria-current="page"{% endif %}>
+            <svg class="icon" aria-hidden="true"><use href="#i-projects"/></svg><span class="label">All projects</span></a></li>
+          {% for p in sidebar.projects %}
+          <li><a href="{% url 'todolist:project' p.id %}" {% if n == 'project' and request.resolver_match.kwargs.id == p.id %}aria-current="page"{% endif %}>
+            <span class="dot" style="background:{{ p.color }}" aria-hidden="true"></span><span class="label">{{ p.name }}</span>
+            <span class="num" title="Open tasks">{{ p.open_count }}</span></a></li>
+          {% empty %}
+          <li><p class="side-empty">No projects yet.</p></li>
+          {% endfor %}
+        </ul>
+      </section>
+    </aside>
   {% endwith %}
   {% endif %}
-  <main class="container py-4 app">
-    {% block content %}{% endblock %}
-  </main>
+    <main class="container py-4 app">
+      {% block content %}{% endblock %}
+    </main>
+  {% if user.is_authenticated %}</div>{% endif %}
   <script src="{% static 'todolist/app.js' %}"></script>
   {% block scripts %}{% endblock %}
 </body>
