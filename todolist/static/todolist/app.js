@@ -3,15 +3,56 @@
   "use strict";
   var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || "";
 
-  // Tick / untick a task. On failure the checkbox goes back and the user is told.
-  window.toggle_status = function (id, box) {
+  // Tick / untick a task (#14). On failure the checkbox goes back and the user is told.
+  function setStatus(id, box, done, then) {
     var body = new URLSearchParams({ id: id });
-    fetch("/todolist/ajax/update_item_status", { method: "POST", body: body, credentials: "same-origin",
-                                                 headers: { "X-CSRFToken": csrf } })
+    return fetch("/todolist/ajax/update_item_status", { method: "POST", body: body, credentials: "same-origin",
+                                                        headers: { "X-CSRFToken": csrf } })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(function () { var li = box.closest("li.task"); if (li) li.classList.toggle("done", box.checked); })
-      .catch(function () { box.checked = !box.checked; alert("Could not update the task. Reload the page and try again."); });
-  };
+      .then(function (data) {
+        box.checked = !!data.status;
+        var li = box.closest("li.task"); if (li) li.classList.toggle("done", box.checked);
+        if (then) then(data);
+      })
+      .catch(function () { box.checked = !done; showToast("Couldn't update the task. Check your connection and try again."); });
+  }
+
+  // A short message at the bottom of the screen, with an optional action button.
+  var toastTimer = null;
+  function showToast(text, actionLabel, onAction) {
+    var t = document.querySelector(".toast-bar");
+    if (!t) {
+      t = document.createElement("div");
+      t.className = "toast-bar"; t.setAttribute("role", "status"); t.setAttribute("aria-live", "polite");
+      document.body.appendChild(t);
+    }
+    t.textContent = "";
+    var msg = document.createElement("span"); msg.textContent = text; t.appendChild(msg);
+    if (actionLabel) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = actionLabel;
+      b.addEventListener("click", function () { hide(); onAction(); });
+      t.appendChild(b);
+    }
+    t.hidden = false; t.classList.add("show");
+    clearTimeout(toastTimer);
+    function hide() { t.classList.remove("show"); t.hidden = true; }
+    toastTimer = setTimeout(hide, 6000);
+  }
+
+  document.addEventListener("click", function (e) {
+    // The 44px area around a checkbox ticks it too, without opening the task.
+    var hit = e.target.closest && e.target.closest(".check-hit");
+    if (hit && !e.target.matches("input")) { e.preventDefault(); hit.querySelector("input").click(); }
+  });
+  document.addEventListener("change", function (e) {
+    var box = e.target;
+    if (!box.matches || !box.matches("input.task-check")) return;
+    var li = box.closest("li.task"); if (!li) return;
+    var done = box.checked, title = li.querySelector(".task-title").textContent;
+    setStatus(li.dataset.id, box, done, function (data) {
+      if (data.status) showToast("Done: " + title, "Undo", function () { box.checked = false; setStatus(li.dataset.id, box, false); });
+    });
+  });
 
   function onReady(fn) { if (document.readyState !== "loading") fn(); else document.addEventListener("DOMContentLoaded", fn); }
 
@@ -94,14 +135,36 @@
       });
     }
 
-    // Account menu (#10): close on Escape or a tap elsewhere.
-    var account = document.querySelector("details.account");
-    if (account) {
-      document.addEventListener("click", function (e) { if (account.open && !account.contains(e.target)) account.open = false; });
-      document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape" && account.open) { account.open = false; account.querySelector("summary").focus(); }
+    // Quick due dates on the task form (#15): change the day, keep the time already set.
+    var dueInput = document.querySelector('input[name="due_date"]');
+    var startInput = document.querySelector('input[name="start_date"]');
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    function localDay(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+    document.querySelectorAll("[data-due-offset]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (!dueInput) return;
+        var d = new Date(); d.setDate(d.getDate() + parseInt(b.dataset.dueOffset, 10));
+        var time = (dueInput.value.split("T")[1] || "18:00").slice(0, 5);
+        dueInput.value = localDay(d) + "T" + time;
+        if (startInput && startInput.value && startInput.value > dueInput.value) startInput.value = dueInput.value;
+        document.querySelectorAll("[data-due-offset]").forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
       });
-    }
+    });
+
+    // Pop-up menus (account #10, project ⋯ #16): one open at a time; close on Escape or a tap elsewhere.
+    var menus = document.querySelectorAll("details.account, details.row-menu");
+    menus.forEach(function (m) {
+      m.addEventListener("toggle", function () {
+        if (m.open) menus.forEach(function (o) { if (o !== m) o.open = false; });
+      });
+    });
+    document.addEventListener("click", function (e) {
+      menus.forEach(function (m) { if (m.open && !m.contains(e.target)) m.open = false; });
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      menus.forEach(function (m) { if (m.open) { m.open = false; m.querySelector("summary").focus(); } });
+    });
 
     // Tabs (task list only). Always start on Today, unless a just-saved task lives elsewhere.
     var tabs = document.querySelectorAll(".tablink");

@@ -7,21 +7,25 @@
   {% for p in projects %}
   <li class="list-group-item project-row{% if p.archived %} archived{% endif %}">
     <div class="project-head">
-      <a class="project-name" href="{% url 'todolist:project' p.id %}"><strong>{{ p.name }}</strong></a>
+      <span class="dot" style="background:{{ p.color }}" aria-hidden="true"></span>
+      {# The whole card opens the project (#16); the link covers it. #}
+      <a class="project-name stretched" href="{% url 'todolist:project' p.id %}"><strong>{{ p.name }}</strong></a>
       {% if p.archived %}<span class="badge bg-secondary">Archived</span>{% endif %}
       <span class="project-count">{{ p.done }} of {{ p.total }} done</span>
+      <details class="row-menu">
+        <summary aria-label="Actions for {{ p.name }}">⋯</summary>
+        <div class="row-menu-list">
+          <a href="{% url 'todolist:additem' %}?project={{ p.id }}&amp;next={% url 'todolist:project' p.id %}">＋ Add task</a>
+          <a href="{% url 'todolist:project_edit' p.id %}">Edit</a>
+          <form method="post" action="{% url 'todolist:project_delete' p.id %}" onsubmit="return confirm('Delete this project? Its tasks are kept, without a project.')">
+            {% csrf_token %}<button class="danger" type="submit">Delete</button>
+          </form>
+        </div>
+      </details>
     </div>
     {% if p.description %}<p class="project-desc">{{ p.description }}</p>{% endif %}
     <div class="progress" role="progressbar" aria-label="{{ p.name }} progress" aria-valuenow="{{ p.done }}" aria-valuemin="0" aria-valuemax="{{ p.total }}">
-      <div class="progress-bar bg-success" data-progress="{% if p.total %}{% widthratio p.done p.total 100 %}{% else %}0{% endif %}"></div>
-    </div>
-    <div class="task-actions">
-      <a class="btn btn-sm btn-outline-success" href="{% url 'todolist:additem' %}?project={{ p.id }}&amp;next={% url 'todolist:project' p.id %}">＋ Add task</a>
-      <a class="btn btn-sm btn-outline-primary" href="{% url 'todolist:project' p.id %}">View tasks</a>
-      <a class="btn btn-sm btn-outline-secondary" href="{% url 'todolist:project_edit' p.id %}">✏️ Edit</a>
-      <form method="post" action="{% url 'todolist:project_delete' p.id %}" class="d-inline" onsubmit="return confirm('Delete this project? Its tasks are kept, without a project.')">
-        {% csrf_token %}<button class="btn btn-sm btn-outline-danger" type="submit">🗑️ Delete</button>
-      </form>
+      <div class="progress-bar" style="background:{{ p.color }}" data-progress="{% if p.total %}{% widthratio p.done p.total 100 %}{% else %}0{% endif %}"></div>
     </div>
   </li>
   {% empty %}

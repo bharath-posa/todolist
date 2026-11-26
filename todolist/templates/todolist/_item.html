@@ -1,20 +1,31 @@
-{# One task, collapsible (#52). data-* attributes drive the priority/tag/search filters. #}
+{% load todo_extras %}
+{# One task, collapsible (#52). data-* attributes drive the filters; app.js handles ticking (#13, #14). #}
+{% with overdue=item|is_overdue %}
 <li class="list-group-item task{% if item.status %} done{% endif %}" data-id="{{ item.id }}" data-priority="{{ item.itemPriority }}"
     data-tags="{{ item.tags|lower }}" data-text="{{ item.todo_item|lower }}"
     data-project="{{ item.project_id|default:'none' }}">
   <details>
     <summary>
-      <input class="form-check-input task-check" type="checkbox" aria-label="Mark “{{ item.todo_item }}” done"
-             onclick="event.stopPropagation(); toggle_status({{ item.id }}, this)" {% if item.status %}checked{% endif %}>
-      <span class="task-title">{{ item.todo_item }}</span>
-      <span class="badge prio prio-{{ item.itemPriority }}" title="{{ item.get_itemPriority_display }}">P{{ item.itemPriority }}</span>
-      {% if item.project and not hide_project %}<a class="badge project" href="{% url 'todolist:project' item.project_id %}">📁 {{ item.project.name }}</a>{% endif %}
-      {% if item.recurrence != "none" %}<span class="badge bg-info text-dark">{{ item.get_recurrence_display }}</span>{% endif %}
-      {% if not item.status and not item.recurring_task and item.due_date < now %}<span class="badge bg-danger">Overdue</span>{% endif %}
-      {% for tag in item.tag_list %}<span class="badge tag">#{{ tag }}</span>{% endfor %}
+      <span class="check-hit">
+        <input class="form-check-input task-check prio-{{ item.itemPriority }}" type="checkbox"
+               aria-label="Mark “{{ item.todo_item }}” done (priority {{ item.itemPriority }}: {{ item.get_itemPriority_display }})"
+               title="Priority {{ item.itemPriority }}: {{ item.get_itemPriority_display }}" {% if item.status %}checked{% endif %}>
+      </span>
+      <span class="task-body">
+        <span class="task-title">{{ item.todo_item }}</span>
+        <span class="task-meta">
+          {% if item.project and not hide_project %}<span class="meta-project"><span class="dot" style="background:{{ item.project.color }}" aria-hidden="true"></span>{{ item.project.name }}</span>{% endif %}
+          {% if item.recurrence != "none" %}<span>{{ item.get_recurrence_display }}</span>
+          {% elif item.status %}<span>Done{% if item.completed_at %} {{ item.completed_at|due_label }}{% endif %}</span>
+          {% elif overdue %}<span class="meta-overdue">Overdue · {{ item.due_date|due_label }}</span>
+          {% else %}<span>Due {{ item.due_date|due_label }}</span>{% endif %}
+          {% for tag in item.tag_list %}<span class="meta-tag">#{{ tag }}</span>{% endfor %}
+        </span>
+      </span>
     </summary>
     <dl class="task-details">
-      <div><dt>Priority</dt><dd>{{ item.get_itemPriority_display }}</dd></div>
+      <div><dt>Priority</dt><dd><span class="prio-dot prio-{{ item.itemPriority }}" aria-hidden="true"></span>{{ item.get_itemPriority_display }}</dd></div>
+      {% if item.project and not hide_project %}<div><dt>Project</dt><dd><a href="{% url 'todolist:project' item.project_id %}">{{ item.project.name }}</a></dd></div>{% endif %}
       <div><dt>Starts</dt><dd>{{ item.start_date|date:"D j M Y, H:i"|default:"—" }}</dd></div>
       <div><dt>Due</dt><dd>{{ item.due_date|date:"D j M Y, H:i" }}</dd></div>
       <div><dt>Pomodoros</dt><dd>{{ item.pomodoro_completed }} of {{ item.pomodoro_estimate }}</dd></div>
@@ -27,3 +38,4 @@
     </div>
   </details>
 </li>
+{% endwith %}

@@ -96,8 +96,8 @@ class SafeMarkup(Base):
         make_item(self.alice, todo_item="x');alert(1);('")
         self.login(self.alice)
         body = self.client.get("/todolist/").content.decode()
-        self.assertNotIn("toggle_status('", body)
-        self.assertIn("toggle_status(", body)
+        self.assertNotIn("toggle_status(", body)          # ticking is wired up in app.js, not inline
+        self.assertIn("x&#x27;);alert(1);(&#x27;", body)   # the text only appears escaped
 
 
 class FreshDatabase(Base):
@@ -452,3 +452,48 @@ class PhoneFirstHome(Base):
         self.assertIn('id="filter-panel" hidden', body)
         self.assertNotIn("btn-outline-danger\" href=\"/todolist/signout/", body)
         self.assertIn(">Done <span", body)
+
+
+class CalmerRows(Base):
+    """UI Tier 2 (#13-#16): one meta line per task, quick due dates, project cards."""
+
+    def setUp(self):
+        super().setUp()
+        self.login(self.alice)
+
+    def test_due_labels(self):
+        from .templatetags.todo_extras import due_label
+        now = timezone.now()
+        self.assertEqual(due_label(now), "Today")
+        self.assertEqual(due_label(now + datetime.timedelta(days=1)), "Tomorrow")
+        self.assertEqual(due_label(now - datetime.timedelta(days=1)), "Yesterday")
+        self.assertEqual(due_label(None), "")
+
+    def test_row_shows_meta_line_not_badges(self):
+        project = Project.objects.create(user=self.alice, name="Garden")
+        make_item(self.alice, todo_item="Late one", due_date=timezone.now() - datetime.timedelta(days=3),
+                  project=project, tags="home, Outside", itemPriority=4)
+        body = self.client.get("/todolist/").content.decode()
+        row = body[body.index("Late one"):]
+        row = row[:row.index("</summary>")]
+        self.assertIn("Overdue ·", row)
+        self.assertIn("Garden", row)
+        self.assertIn("#Outside", row)
+        self.assertNotIn("badge", row)
+        self.assertIn("task-check prio-4", body)
+        self.assertIn('class="check-hit"', body)
+
+    def test_form_folds_rare_fields_and_opens_them_on_error(self):
+        page = self.client.get("/todolist/additem/").content.decode()
+        self.assertIn('data-due-offset="1"', page)
+        self.assertIn('<details class="more-fields">', page)
+        res = self.client.post("/todolist/additem/", {**FORM, "pomodoro_estimate": "-1"})
+        self.assertContains(res, '<details class="more-fields" open>')
+
+    def test_project_cards_have_menu_and_colour(self):
+        p = Project.objects.create(user=self.alice, name="Garden")
+        body = self.client.get("/todolist/projects/").content.decode()
+        self.assertIn('class="row-menu"', body)
+        self.assertIn(p.color, body)
+        self.assertIn("project-name stretched", body)
+        self.assertEqual(Project(pk=1).color, Project(pk=9).color)   # stable palette by id
