@@ -491,6 +491,22 @@ class CalmerRows(Base):
         res = self.client.post("/todolist/additem/", {**FORM, "pomodoro_estimate": "-1"})
         self.assertContains(res, '<details class="more-fields" open>')
 
+    def test_edit_shows_and_saves_pomodoros(self):
+        item = Item.objects.create(user=self.alice, todo_item="Walk", create_date=timezone.now(), due_date=timezone.now(),
+                                   status=False, pomodoro_estimate=3, pomodoro_completed=0, recurring_task=True,
+                                   recurrence="daily", autoCompletePomodoro=False, itemPriority=2)
+        page = self.client.get(f"/todolist/editItem/{item.id}").content.decode()
+        self.assertIn('<details class="more-fields" open>', page)
+        self.assertIn('name="pomodoro_estimate"', page)
+        self.assertNotIn("{#", page)
+        self.client.post(f"/todolist/editItem/{item.id}", {**FORM, "recurrence": "daily", "pomodoro_estimate": "5",
+                                                           "pomodoro_completed": "2"})
+        item.refresh_from_db()
+        self.assertEqual((item.pomodoro_estimate, item.pomodoro_completed), (5, 2))
+        self.client.get("/todolist/")  # the task list's daily reset check must not undo it on the same day
+        item.refresh_from_db()
+        self.assertEqual((item.pomodoro_estimate, item.pomodoro_completed), (5, 2))
+
     def test_project_cards_have_menu_and_colour(self):
         p = Project.objects.create(user=self.alice, name="Garden")
         body = self.client.get("/todolist/projects/").content.decode()
