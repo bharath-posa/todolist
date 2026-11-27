@@ -37,8 +37,8 @@
     </div>
     {% endif %}
 
-    {# Less-used fields fold away; they open by themselves when one of them has an error. #}
-    <details class="more-fields"{% if form.start_date.errors or form.pomodoro_estimate.errors or form.pomodoro_completed.errors %} open{% endif %}>
+    {# Rare fields fold away when adding a task; open when editing (pomodoros easy to find) or on an error. #}
+    <details class="more-fields"{% if item or form.start_date.errors or form.pomodoro_estimate.errors or form.pomodoro_completed.errors %} open{% endif %}>
       <summary>More options <span class="hint">start time, pomodoros</span></summary>
       {% with f=form.start_date %}{% include "todolist/_field.html" %}{% endwith %}
       <fieldset class="pomodoro-fields">

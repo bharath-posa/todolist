@@ -279,7 +279,12 @@ li.task.just-saved { outline: 3px solid var(--tl-accent); outline-offset: -3px; 
 .quick-dates .chip { min-height: 36px; }
 .quick-dates .chip[aria-pressed="true"] { background: var(--tl-accent); border-color: var(--tl-accent); color: #fff; }
 .more-fields { border-top: 1px solid var(--tl-border); margin: var(--sp-1) 0 var(--sp-4); padding-top: var(--sp-2); }
-.more-fields > summary { cursor: pointer; font-weight: 600; min-height: var(--tap); display: flex; align-items: center; gap: var(--sp-2); }
+.more-fields > summary { cursor: pointer; font-weight: 600; min-height: var(--tap); display: flex; align-items: center; gap: var(--sp-2); list-style: none; color: var(--tl-accent-strong); }
+.more-fields > summary::-webkit-details-marker { display: none; }
+/* display:flex hides the browser's own arrow, so draw one: it shows the row can be tapped. */
+.more-fields > summary::before { content: "▸"; display: inline-block; transition: transform .15s; }
+.more-fields[open] > summary::before { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .more-fields > summary::before { transition: none; } }
 .more-fields > summary .hint { font-weight: 400; }
 .more-fields[open] > summary { margin-bottom: var(--sp-2); }
 
