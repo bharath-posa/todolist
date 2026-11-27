@@ -32,5 +32,7 @@ urlpatterns=[
     path('notifications/unsubscribe/', views_push.unsubscribe, name='push_unsubscribe'),
     path('notifications/test/', views_push.test, name='push_test'),
     path('notifications/devices/<int:id>/remove/', views_push.remove_device, name='push_remove_device'),
+    path('timer/alarm/', views_push.timer_alarm, name='timer_alarm'),
+    path('timer/alarm/cancel/', views_push.timer_alarm_cancel, name='timer_alarm_cancel'),
     
 ]

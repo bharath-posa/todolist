@@ -693,3 +693,56 @@ class Notifications(Base):
             self.assertContains(self.client.get("/todolist/notifications/"), "aren't set up on the server")
             self.assertEqual(push.run_once(), 0)
         push._private_key.cache_clear()
+
+    def _timer_item(self):
+        return Item.objects.create(user=self.alice, todo_item="Walk for 5 miles", create_date=timezone.now(),
+                                   due_date=timezone.now(), status=False, pomodoro_estimate=3, pomodoro_completed=0,
+                                   recurring_task=False, autoCompletePomodoro=False, itemPriority=2)
+
+    def test_timer_alarm_pushes_when_the_timer_ends(self):
+        from . import push
+        from .models import TimerAlarm
+        item = self._timer_item()
+        self.subscribe(self.alice)
+        page = self.client.get(f"/todolist/pomodorotimer/{item.id}").content.decode()
+        self.assertIn("even if the screen locks", page)
+        self.assertIn("scheduleAlarm(id);", page)
+        res = self.client.post("/todolist/timer/alarm/", data=json.dumps({"item": item.id, "seconds": 1500, "mode": "pomodoro"}),
+                               content_type="application/json")
+        self.assertEqual(res.json(), {"ok": True, "push": True})
+        ends = TimerAlarm.objects.get(user=self.alice).ends_at
+        self.assertEqual(push.timer_alarms(ends - datetime.timedelta(seconds=5)), 0)    # not yet
+        self.assertEqual(push.timer_alarms(ends + datetime.timedelta(seconds=3)), 1)
+        msg = self.sent[0][1]
+        self.assertEqual((msg["title"], msg["url"], msg["tag"]), ("⏰ Pomodoro done", f"/todolist/pomodorotimer/{item.id}", "timer"))
+        self.assertIn("Walk for 5 miles", msg["body"])
+        self.assertEqual(push.timer_alarms(ends + datetime.timedelta(seconds=10)), 0)   # sent once
+        self.assertFalse(TimerAlarm.objects.exists())
+
+    def test_timer_alarm_cancel_replace_and_limits(self):
+        from . import push
+        from .models import TimerAlarm
+        item = self._timer_item()
+        self.subscribe(self.alice)
+        post = lambda url, data=None: self.client.post(url, data=json.dumps(data or {}), content_type="application/json")
+        post("/todolist/timer/alarm/", {"item": item.id, "seconds": 1500, "mode": "pomodoro"})
+        post("/todolist/timer/alarm/", {"item": item.id, "seconds": 300, "mode": "short"})   # Start again replaces it
+        self.assertEqual(TimerAlarm.objects.get(user=self.alice).mode, "short")
+        post("/todolist/timer/alarm/cancel/")                                                   # Pause / Stop / Reset
+        self.assertFalse(TimerAlarm.objects.exists())
+        self.assertEqual(post("/todolist/timer/alarm/", {"seconds": 0, "mode": "pomodoro"}).status_code, 400)
+        self.assertEqual(post("/todolist/timer/alarm/", {"seconds": 60, "mode": "nap"}).status_code, 400)
+        other = Item.objects.create(user=self.bob, todo_item="Bob's", create_date=timezone.now(), due_date=timezone.now(),
+                                    status=False, pomodoro_estimate=1, pomodoro_completed=0, recurring_task=False,
+                                    autoCompletePomodoro=False, itemPriority=2)
+        self.assertEqual(post("/todolist/timer/alarm/", {"item": other.id, "seconds": 60, "mode": "pomodoro"}).status_code, 404)
+        # A break alarm, and one the notifier missed by too long (it was down) is dropped.
+        post("/todolist/timer/alarm/", {"item": item.id, "seconds": 300, "mode": "short"})
+        ends = TimerAlarm.objects.get().ends_at
+        self.assertEqual(push.timer_alarms(ends + datetime.timedelta(seconds=1)), 1)
+        self.assertEqual(self.sent[-1][1]["title"], "⏰ Break over")
+        post("/todolist/timer/alarm/", {"item": item.id, "seconds": 60, "mode": "pomodoro"})
+        self.assertEqual(push.timer_alarms(timezone.now() + datetime.timedelta(minutes=30)), 0)
+        self.assertFalse(TimerAlarm.objects.exists())
+        self.client.logout()
+        self.assertEqual(post("/todolist/timer/alarm/cancel/").status_code, 302)                # sign-in needed

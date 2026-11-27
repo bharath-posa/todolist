@@ -1,4 +1,5 @@
-"""Send due-task reminders and morning summaries. Runs forever, checking once a minute.
+"""Send due-task reminders, morning summaries and pomodoro timer alarms. Runs forever: timer alarms are
+checked every few seconds, everything else once a minute.
 
     python manage.py run_notifier          # long-running (the `notifier` container)
     python manage.py run_notifier --once   # one pass, e.g. from cron
@@ -18,8 +19,10 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--once", action="store_true", help="Run one pass and exit.")
         parser.add_argument("--interval", type=int, default=60, help="Seconds between passes (default 60).")
+        parser.add_argument("--timer-interval", type=int, default=5,
+                            help="Seconds between checks for finished pomodoro timers (default 5).")
 
-    def handle(self, *args, once=False, interval=60, **opts):
+    def handle(self, *args, once=False, interval=60, timer_interval=5, **opts):
         if not push.enabled():
             self.stderr.write("No VAPID key (DJANGO_VAPID_PRIVATE_KEY_FILE); nothing to do.")
             if once:
@@ -38,8 +41,16 @@ class Command(BaseCommand):
                 self.stderr.write(f"notifier pass failed: {e!r}")
             if once:
                 break
-            for _ in range(interval):
+            # Between full passes, check the timer alarms often so they arrive on time.
+            for tick in range(1, interval + 1):
                 if stop["now"]:
                     break
                 time.sleep(1)
+                if timer_interval > 0 and tick % timer_interval == 0 and tick < interval:
+                    close_old_connections()
+                    try:
+                        if push.timer_alarms():
+                            self.stdout.write("sent a timer alarm")
+                    except Exception as e:
+                        self.stderr.write(f"timer check failed: {e!r}")
         self.stdout.write("notifier stopped")

@@ -190,7 +190,11 @@ def pomodoroTimer(request,id):
             # saving the deleted item in deleted table 
         pomodoro_item = get_object_or_404(Item, id=item_id, user=request.user)
 
-    return render(request,"todolist/pomodorotimer.html",{'item':pomodoro_item})
+    from . import push
+    return render(request, "todolist/pomodorotimer.html", {
+        'item': pomodoro_item,
+        'push_on': push.enabled() and request.user.push_subscriptions.exists(),
+        'push_available': push.enabled()})
 
 @login_required
 def updatePomodoroCount(request):

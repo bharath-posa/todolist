@@ -32,6 +32,31 @@ function unlockAudio(){
   else { done(); audioReady = true; }
 }
 
+// Push alarm: the server sends a notification when the timer ends, which works even if this page is asleep
+// (screen locked, app in the background). Start schedules it; Pause, Stop, Reset or switching mode cancel it.
+function timerMode(){
+  if ($('#shortButton').hasClass('btn-success')) return 'short';
+  if ($('#longButton').hasClass('btn-success')) return 'long';
+  return 'pomodoro';
+}
+
+function postAlarm(url, data){
+  try {
+    return fetch(url, {method: 'POST', keepalive: true, credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+      body: JSON.stringify(data || {})}).catch(function(){});
+  } catch (e) { return null; }
+}
+
+function scheduleAlarm(id){
+  var seconds = Math.round(remainingTime / 1000);
+  if (seconds >= 1) postAlarm("{% url 'todolist:timer_alarm' %}", {item: id, seconds: seconds, mode: timerMode()});
+}
+
+function cancelAlarm(){
+  postAlarm("{% url 'todolist:timer_alarm_cancel' %}");
+}
+
 function silenceAlarm(){
   audio.pause();
   audio.currentTime = 0;
@@ -96,6 +121,7 @@ function onStartTimer(id){
   unlockAudio();
   stopTimer();
   startTimer(id);
+  scheduleAlarm(id);
 };
 
 function onStopTimer(){
@@ -105,11 +131,13 @@ function onStopTimer(){
 
 // The Stop button: stop counting and silence the alarm if it is ringing.
 function onStopButton(){
+  cancelAlarm();
   clearInterval(countdownHandle);
   silenceAlarm();
 }
 
 function onResetTimer(){
+  cancelAlarm();
   clearInterval(countdownHandle);
   silenceAlarm();
   resetTimer();
@@ -129,6 +157,7 @@ function startAlarm(){
 
 
 function onPauseTimer(){
+  cancelAlarm();
   pauseTimer();
   
 }
@@ -278,6 +307,8 @@ function decrementTimer(id,initialTime){
   //remainingTime-=(1*1000);
 
   if(remainingTime<1000){
+    // This page is awake and rings itself, so the push isn't needed.
+    if (document.visibilityState === 'visible') cancelAlarm();
     onStopTimer();
     var x = document.getElementById("pomodoroButton").className; 
     if (x == 'btn btn-default btn-success' ){
@@ -352,9 +383,9 @@ function pomodoroCountUpdate(id) {
       <h2 class="text-center">
 
         <span>
-          <button id="pomodoroButton" class="btn btn-default" type="submit" onclick="onPomodoroTimer()" >Pomodoro</button>
-          <button id="shortButton" class="btn btn-default" type="submit" onclick="onShortTimer()">Short Break</button>
-          <button id="longButton" class="btn btn-default" type="submit" onclick="onLongTimer()">Long Break</button>
+          <button id="pomodoroButton" class="btn btn-default" type="submit" onclick="cancelAlarm(); onPomodoroTimer()" >Pomodoro</button>
+          <button id="shortButton" class="btn btn-default" type="submit" onclick="cancelAlarm(); onShortTimer()">Short Break</button>
+          <button id="longButton" class="btn btn-default" type="submit" onclick="cancelAlarm(); onLongTimer()">Long Break</button>
         </span>
       </h2>
     </div>
@@ -394,7 +425,11 @@ function pomodoroCountUpdate(id) {
 
   </div>
 
-  <br>
+  <p class="text-center text-muted small px-3" id="pushNote">
+    {% if push_on %}🔔 You'll also get a notification when time's up, even if the screen locks.
+    {% elif push_available %}Want an alert when the screen is locked? <a href="{% url 'todolist:notifications' %}">Turn on notifications</a>.
+    {% endif %}
+  </p>
 
   <div class="text-center">
     <a href= "{% url 'todolist:index' %}" ><button type="button"  class="btn btn-warning">Home</button> </a>
