@@ -61,7 +61,8 @@ Reminders need a VAPID key and a second process that checks once a minute.
    `DJANGO_VAPID_SUBJECT` (optional) is the contact push services see; it defaults to `DJANGO_PUBLIC_ORIGIN`
    and must start with `https://` or `mailto:`.
 3. Run the notifier with the same image and settings: `python manage.py run_notifier` (or
-   `run_notifier --once` from cron every minute). It needs outbound HTTPS to the push services
+   `run_notifier --once` from cron every minute). The long-running notifier also checks for finished pomodoro
+   timers every 5 seconds (`--timer-interval`); with cron they can arrive up to a minute late. It needs outbound HTTPS to the push services
    (`web.push.apple.com`, `fcm.googleapis.com`, `updates.push.services.mozilla.com`).
 
 The app serves `/todolist/sw.js` (service worker, with `Service-Worker-Allowed: /todolist/`) and

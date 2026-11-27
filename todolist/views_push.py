@@ -1,19 +1,21 @@
 """Install-to-Home-Screen (manifest, service worker) and the Notifications page."""
+import datetime
 import json
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django import forms
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseNotAllowed, JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.templatetags.static import static
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_POST
 
 from . import push
-from .models import NotificationSettings, PushSubscription
+from .models import TIMER_MODES, Item, NotificationSettings, PushSubscription, TimerAlarm
 
 
 @cache_control(no_cache=True, max_age=0)
@@ -123,3 +125,28 @@ def remove_device(request, id):
 def test(request):
     n = push.send(request.user, "Notifications are on 🎉", "This is how reminders will look.", tag="test")
     return JsonResponse({"ok": n > 0, "sent": n})
+
+
+@login_required
+@require_POST
+def timer_alarm(request):
+    """The timer page started counting: remember when it ends, so the notifier can push the alarm."""
+    data = _json(request)
+    try:
+        seconds = int(data.get("seconds"))
+    except (TypeError, ValueError):
+        seconds = 0
+    mode = data.get("mode")
+    if not 1 <= seconds <= 3 * 3600 or mode not in dict(TIMER_MODES):
+        return JsonResponse({"ok": False, "error": "Bad timer."}, status=400)
+    item = get_object_or_404(Item, id=data.get("item"), user=request.user) if data.get("item") else None
+    TimerAlarm.objects.update_or_create(user=request.user, defaults={
+        "item": item, "mode": mode, "ends_at": timezone.now() + datetime.timedelta(seconds=seconds)})
+    return JsonResponse({"ok": True, "push": push.enabled() and request.user.push_subscriptions.exists()})
+
+
+@login_required
+@require_POST
+def timer_alarm_cancel(request):
+    TimerAlarm.objects.filter(user=request.user).delete()
+    return JsonResponse({"ok": True})

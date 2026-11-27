@@ -54,6 +54,10 @@ calendar week (Monday), the next month or the next year. This happens the next t
 
 ## Pomodoro timer
 **⏲️ Timer** on a task opens a 25-minute focus timer. Each completed pomodoro is counted on the task.
+When time is up an alarm sounds and a **Time's up** banner shows; **Stop** silences it. With notifications on
+(see below) you also get a **⏰ Pomodoro done** or **⏰ Break over** notification, even if the screen is locked
+or you switched apps. **Pause**, **Stop**, **Reset** or picking another timer cancels it. On iPhone the page's
+own alarm is muted when the side switch is on silent; the notification follows your notification settings.
 
 ## Projects
 **Projects** lists your projects with a colour dot and a progress bar (finished / all tasks). Tap a project
@@ -70,6 +74,7 @@ the first entry, the lowest and highest values, and a chart.
 Your initial → **🔔 Notifications**.
 
 - **Due reminders** for one-off tasks: when they're due, or 15 minutes, 1 hour or 1 day before.
+- **Pomodoro timer alarm** when a running timer ends (see above).
 - **Morning summary** at the time you pick (in your device's time zone): how many tasks are due today and
   overdue, with the first few names. Days with nothing to do are skipped.
 

@@ -12,11 +12,12 @@ from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import Item, NotificationSettings, PushSubscription, SentNotification
+from .models import Item, NotificationSettings, PushSubscription, SentNotification, TimerAlarm
 
 log = logging.getLogger(__name__)
 CATCH_UP = datetime.timedelta(minutes=30)   # after downtime, don't send reminders older than this
 SUMMARY_WINDOW = datetime.timedelta(hours=2)
+TIMER_LATE = datetime.timedelta(minutes=10)   # a timer alarm this late (notifier was down) is dropped
 
 
 # ---------- keys ----------
@@ -153,7 +154,27 @@ def daily_summaries(now=None):
     return sent
 
 
+def timer_alarms(now=None):
+    """The pomodoro timer's alarm, for when the timer page is asleep (screen locked, app in the background)."""
+    if not enabled():
+        return 0
+    now = now or timezone.now()
+    sent = 0
+    for alarm in TimerAlarm.objects.filter(ends_at__lte=now).select_related("item", "user"):
+        # Delete first: if two notifier passes overlap, only the one that deletes the row sends.
+        if not TimerAlarm.objects.filter(pk=alarm.pk).delete()[0] or now - alarm.ends_at > TIMER_LATE:
+            continue
+        name = alarm.item.todo_item if alarm.item_id else ""
+        if alarm.mode == "pomodoro":
+            title, body = "⏰ Pomodoro done", (f"{name} · " if name else "") + "time for a break."
+        else:
+            title, body = "⏰ Break over", f"Back to: {name}" if name else "Time to start the next pomodoro."
+        url = reverse("todolist:pomodoroTimer", args=[alarm.item_id]) if alarm.item_id else reverse("todolist:index")
+        sent += send(alarm.user, title, body, url=url, tag="timer")
+    return sent
+
+
 def run_once(now=None):
     if not enabled():
         return 0
-    return due_reminders(now) + daily_summaries(now)
+    return due_reminders(now) + daily_summaries(now) + timer_alarms(now)

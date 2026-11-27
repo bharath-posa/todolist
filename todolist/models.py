@@ -237,6 +237,22 @@ class NotificationSettings(models.Model):
         return f"{self.user} notifications"
 
 
+TIMER_MODES = [("pomodoro", "Pomodoro"), ("short", "Short break"), ("long", "Long break")]
+
+
+class TimerAlarm(models.Model):
+    """The running pomodoro timer's end time, so a push can sound the alarm even if the page is asleep.
+    One per user: starting a timer replaces it; pausing, stopping or resetting removes it."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='timer_alarm')
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, null=True, blank=True, related_name='+')
+    mode = models.CharField(max_length=10, choices=TIMER_MODES, default="pomodoro")
+    ends_at = models.DateTimeField(db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user} timer until {self.ends_at:%H:%M:%S}"
+
+
 class SentNotification(models.Model):
     """Remembers what was sent so a reminder or summary never goes out twice."""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='+')
