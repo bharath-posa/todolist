@@ -17,6 +17,27 @@ var  pauseFlag= 0;
 var countdownHandle;
 
 var audio = new Audio("{% static 'todolist/sounds/alarm_clock_2015.mp3' %}");
+audio.preload = "auto";
+var audioReady = false;
+var pageTitle = document.title || "Pomodoro timer";
+
+// iPhone Safari (and other browsers) only let a page play sound that a tap started. The alarm plays from
+// the countdown, so play it silently once while the user taps Start; after that the browser allows it.
+function unlockAudio(){
+  if (audioReady) return;
+  audio.muted = true;
+  var p = audio.play();
+  var done = function(){ audio.pause(); audio.currentTime = 0; audio.muted = false; };
+  if (p && p.then) { p.then(function(){ done(); audioReady = true; }).catch(function(){ audio.muted = false; }); }
+  else { done(); audioReady = true; }
+}
+
+function silenceAlarm(){
+  audio.pause();
+  audio.currentTime = 0;
+  $('#timesUp').prop('hidden', true);
+  document.title = pageTitle;
+}
 
 $(document).ready(function() {
   onPomodoroTimer();
@@ -70,9 +91,9 @@ function onLongTimer(){
 }
 
 function onStartTimer(id){
-  console.log('Start time id');
-  console.log(id);
   item_id = id;
+  silenceAlarm();
+  unlockAudio();
   stopTimer();
   startTimer(id);
 };
@@ -82,15 +103,27 @@ function onStopTimer(){
 
 };
 
+// The Stop button: stop counting and silence the alarm if it is ringing.
+function onStopButton(){
+  clearInterval(countdownHandle);
+  silenceAlarm();
+}
+
 function onResetTimer(){
-  stopTimer();
+  clearInterval(countdownHandle);
+  silenceAlarm();
   resetTimer();
 }
 
 function startAlarm(){
   if(remainingTime<1000)
   {
-    audio.play();
+    audio.muted = false;
+    audio.currentTime = 0;
+    var p = audio.play();
+    if (p && p.catch) p.catch(function(){});  // blocked: the banner below still shows
+    $('#timesUp').prop('hidden', false);
+    document.title = "⏰ Time's up · " + pageTitle;
   }
 }
 
@@ -124,6 +157,8 @@ function resetTimer(){
   
 
 
+  pausingTime = 0;   // a fresh timer forgets any earlier pause
+  pauseFlag = 0;
   remainingTime = (gHours*60*60*1000)+
   (gMinutes*60*1000)+
   (gSeconds*1000);
@@ -216,7 +251,6 @@ function formatTime(intergerValue){
 function decrementTimer(id,initialTime){
 
 
-  console.log('Initial time ',initialTime);
   var latestEpoch = new Date().getTime();
   // Get Caliculated time 
   var x = document.getElementById("pomodoroButton").className; 
@@ -241,7 +275,6 @@ function decrementTimer(id,initialTime){
     }
   
 
-  console.log('remainingTime',remainingTime);
   //remainingTime-=(1*1000);
 
   if(remainingTime<1000){
@@ -326,6 +359,8 @@ function pomodoroCountUpdate(id) {
       </h2>
     </div>
 
+    <div id="timesUp" class="alert alert-success text-center" role="alert" hidden>⏰ Time's up! Tap <strong>Stop</strong> to silence the alarm.</div>
+
     <div class="panel panel-default">
       <div class="panel-body text-center">
         <div class="timer-time timer-container">
@@ -350,7 +385,7 @@ function pomodoroCountUpdate(id) {
           
         </div>
     </br>
-        <button id="stopButton" class="btn btn-danger btn-lg" type="submit" onclick="onStopTimer()">
+        <button id="stopButton" class="btn btn-danger btn-lg" type="submit" onclick="onStopButton()">
             <span class="glyphicon glyphicon-stop" aria-hidden="true"></span> Stop
           </button>
       </div>

@@ -507,6 +507,15 @@ class CalmerRows(Base):
         item.refresh_from_db()
         self.assertEqual((item.pomodoro_estimate, item.pomodoro_completed), (5, 2))
 
+    def test_timer_unlocks_alarm_sound_on_start(self):
+        item = Item.objects.create(user=self.alice, todo_item="Read", create_date=timezone.now(), due_date=timezone.now(),
+                                   status=False, pomodoro_estimate=2, pomodoro_completed=0, recurring_task=False,
+                                   autoCompletePomodoro=False, itemPriority=2)
+        page = self.client.get(f"/todolist/pomodorotimer/{item.id}").content.decode()
+        self.assertIn("unlockAudio();", page)              # Start primes the sound for iPhone Safari
+        self.assertIn('onclick="onStopButton()"', page)    # Stop silences the alarm
+        self.assertIn('id="timesUp"', page)                # visible even if sound is blocked
+
     def test_project_cards_have_menu_and_colour(self):
         p = Project.objects.create(user=self.alice, name="Garden")
         body = self.client.get("/todolist/projects/").content.decode()
